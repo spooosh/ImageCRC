@@ -1,6 +1,16 @@
 ### Idea files
 .idea
 
+### Swift / Xcode build artifacts
+.build/
+.swiftpm/
+Package.resolved
+build/
+DerivedData/
+*.xcodeproj/
+img-cc.app/
+
+
 ### macOS template
 # General
 .DS_Store
