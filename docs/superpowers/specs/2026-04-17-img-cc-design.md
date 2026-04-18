@@ -11,7 +11,7 @@ Native macOS app for bulk optimization and format conversion of images. User dro
 | Format | Input | Output | Implementation |
 |---|---|---|---|
 | JPG / JPEG | ✓ | ✓ | `ImageIO` |
-| PNG | ✓ | ✓ | `ImageIO` |
+| PNG | ✓ | ✓ | `ImageIO` (lossless); **pngquant** subprocess for lossy indexed-color output |
 | HEIC | ✓ | — | `ImageIO` (native since 10.13) |
 | AVIF | ✓ | ✓ | `ImageIO` (encode requires macOS 14+) |
 | WebP | ✓ | ✓ | Decode via `ImageIO`; encode via **libwebp** (SwiftPM) |
@@ -24,6 +24,7 @@ Native macOS app for bulk optimization and format conversion of images. User dro
 - Xcode project with SwiftPM for third-party deps
 - Dependencies:
   - libwebp (via [SDWebImageWebPCoder](https://github.com/SDWebImage/libwebp-Xcode) or a direct libwebp SPM wrapper — pick smallest viable option during implementation)
+  - **pngquant** (GPL v3) — bundled as a subprocess binary in `img-cc.app/Contents/Resources/bin/pngquant`; sourced from `brew --prefix pngquant` during `make-app.sh`. Dev runs fall back to `/opt/homebrew/bin/pngquant` / `/usr/local/bin/pngquant`.
 - Tests: **Swift Testing** framework + small binary fixtures per format
 
 ## 4. Architecture
@@ -46,7 +47,8 @@ img-cc/
 │   │   └── SVGDecoder.swift        # NSImage + WKWebView fallback
 │   ├── Encoders/
 │   │   ├── JPEGEncoder.swift
-│   │   ├── PNGEncoder.swift
+│   │   ├── PNGEncoder.swift        # ImageIO lossless path
+│   │   ├── PNGQuantizer.swift      # pngquant subprocess for lossy PNG
 │   │   ├── AVIFEncoder.swift
 │   │   └── WebPEncoder.swift       # libwebp bridge
 │   ├── FilenameResolver.swift      # collision-safe names
@@ -75,7 +77,7 @@ img-cc/
 - Slider value `q ∈ [0, 100]`; internally mapped to `CGFloat(q) / 100.0`.
 - Applied to `kCGImageDestinationLossyCompressionQuality` for JPEG, AVIF.
 - Passed to libwebp `WebPConfig.quality` for WebP.
-- PNG is lossless → slider **has no effect** (UI shows tooltip "PNG is lossless; quality setting is ignored").
+- PNG: at `q == 100` we emit a pure lossless ImageIO PNG. At `q < 100`, the lossless bytes are piped through `pngquant --quality 0-q --speed 4 --strip` for indexed-color compression (≤256 colors, Floyd-Steinberg dithering). UI hint below the slider explains the quantization when PNG + q<100.
 
 ## 6. UI Specification
 
@@ -112,10 +114,11 @@ img-cc/
 - Summary shows `"N succeeded, M failed"`; disclosure lists each failed file with localized error message.
 - Decoder/encoder errors typed via `enum ConversionError: Error`.
 
-## 10. Sandbox & Signing
+## 10. Sandbox, Signing & Licensing
 
 - **App Sandbox disabled** for MVP (direct FS access to chosen output folder; simpler, no security-scoped bookmarks).
 - Code signing: ad-hoc (`codesign -s -`) — sufficient for local run; distribution is out of scope.
+- Because `pngquant` is GPL v3, any distributed `img-cc.app` binary is a combined work under GPL v3. The project is intended to ship as open source under a GPL-compatible license; App Store distribution is explicitly out of scope.
 
 ## 11. Testing Strategy
 
