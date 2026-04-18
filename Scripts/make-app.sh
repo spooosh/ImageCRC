@@ -82,6 +82,8 @@ cat > "${APP}/Contents/Info.plist" <<PLIST
     <true/>
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 spooosh</string>
+    <key>NSQuitAlwaysKeepsWindows</key>
+    <false/>
 </dict>
 </plist>
 PLIST

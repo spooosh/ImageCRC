@@ -50,6 +50,7 @@ targets:
         LSApplicationCategoryType: public.app-category.graphics-design
         NSSupportsAutomaticTermination: false
         NSSupportsSuddenTermination: false
+        NSQuitAlwaysKeepsWindows: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.spooosh.img-cc
