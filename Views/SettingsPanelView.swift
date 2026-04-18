@@ -7,11 +7,21 @@ struct SettingsPanelView: View {
     let onChooseFolder: () -> Void
     var focus: FocusState<Field?>.Binding
 
+    /// Keep all TextFields disabled on the first render so AppKit's NSWindow
+    /// cannot auto-select any of them as initial first responder — that auto
+    /// selection is what spawns the AutoFill popover service on launch.
+    /// Flipped back to false one runloop cycle later, by which time initial
+    /// firstResponder has already been resolved to a non-TextField view.
+    @State private var textFieldsLocked = true
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             qualitySection.settingsSectionStyle()
             resizeSection.settingsSectionStyle()
             outputSection.settingsSectionStyle()
+        }
+        .onAppear {
+            DispatchQueue.main.async { textFieldsLocked = false }
         }
     }
 
@@ -19,24 +29,17 @@ struct SettingsPanelView: View {
 
     private var qualitySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 2) {
+            HStack(spacing: 6) {
                 Label("Quality", systemImage: "slider.horizontal.3")
                     .font(.headline)
                 Spacer()
-                TextField(
-                    "",
-                    value: Binding(
-                        get: { settings.quality },
-                        set: { settings.quality = min(max($0, 0), 100) }
-                    ),
-                    format: .number
-                )
-                .textFieldStyle(.plain)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 32)
-                .font(.subheadline.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .focused(focus, equals: .quality)
+                TextField("", text: Self.qualityBinding($settings.quality))
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 52)
+                    .font(.subheadline.monospacedDigit())
+                    .focused(focus, equals: .quality)
+                    .disabled(textFieldsLocked)
                 Text("%")
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -72,11 +75,13 @@ struct SettingsPanelView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
                     .focused(focus, equals: .width)
+                    .disabled(textFieldsLocked)
                 Text("×").foregroundStyle(.secondary)
                 TextField("auto", text: Self.numericBinding($settings.resize.height))
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: .infinity)
                     .focused(focus, equals: .height)
+                    .disabled(textFieldsLocked)
                 Text("px")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -146,6 +151,19 @@ struct SettingsPanelView: View {
                     source.wrappedValue = nil
                 } else if let n = Int(digits), n >= 1 {
                     source.wrappedValue = n
+                }
+            }
+        )
+    }
+
+    private static func qualityBinding(_ source: Binding<Int>) -> Binding<String> {
+        Binding(
+            get: { String(source.wrappedValue) },
+            set: { newValue in
+                let digits = newValue.filter { $0.isASCII && $0.isNumber }
+                if digits.isEmpty { return }
+                if let n = Int(digits) {
+                    source.wrappedValue = min(max(n, 0), 100)
                 }
             }
         )

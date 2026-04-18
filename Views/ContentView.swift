@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 struct ContentView: View {
     @Bindable var viewModel: ConversionViewModel
@@ -35,11 +34,6 @@ struct ContentView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { focusedField = nil }
-        .onAppear {
-            DispatchQueue.main.async {
-                NSApp.keyWindow?.makeFirstResponder(nil)
-            }
-        }
         .animation(.easeInOut(duration: 0.25), value: viewModel.phase)
         .animation(.easeInOut(duration: 0.25), value: viewModel.files.count)
         .sheet(isPresented: completionBinding) {
