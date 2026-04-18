@@ -27,9 +27,7 @@ struct DropZoneView: View {
                 .animation(.easeInOut(duration: 0.15), value: isActive)
 
             VStack(spacing: 10) {
-                Image(systemName: hasFiles
-                      ? "plus.rectangle.on.rectangle"
-                      : "square.and.arrow.down.on.square")
+                Image(systemName: "square.and.arrow.down.on.square")
                     .font(.system(size: 34, weight: .regular))
                     .foregroundStyle(Color.accentColor)
                 Text(hasFiles
@@ -43,7 +41,7 @@ struct DropZoneView: View {
             }
             .padding()
         }
-        .frame(height: hasFiles ? 110 : 180)
+        .frame(height: 180)
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .onTapGesture { onBrowse() }
         .onHover { isHovering = $0 }
