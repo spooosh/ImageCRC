@@ -62,10 +62,12 @@ struct CompletionSheetView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(summary.successes.isEmpty)
+                .pointingHandCursor()
 
                 Button("Done", action: onDismiss)
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
+                    .pointingHandCursor()
             }
             .padding(.top, 4)
         }

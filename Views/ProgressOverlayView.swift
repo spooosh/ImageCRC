@@ -35,6 +35,7 @@ struct ProgressOverlayView: View {
                 }
                 .controlSize(.large)
                 .keyboardShortcut(.cancelAction)
+                .pointingHandCursor()
             }
             .padding(36)
             .background(.ultraThinMaterial,

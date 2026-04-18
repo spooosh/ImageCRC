@@ -62,6 +62,7 @@ struct SettingsPanelView: View {
                                     in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     Button("Choose…", action: onChooseFolder)
                         .buttonStyle(.bordered)
+                        .pointingHandCursor()
                 }
             }
         }

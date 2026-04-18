@@ -4,6 +4,8 @@ struct FileRowView: View {
     let file: ImageFile
     let onRemove: () -> Void
 
+    @State private var removeHovered = false
+
     var body: some View {
         HStack(spacing: 14) {
             AsyncThumbnailView(url: file.url, size: 52)
@@ -32,9 +34,13 @@ struct FileRowView: View {
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(removeHovered ? AnyShapeStyle(Color.red) : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .onHover { removeHovered = $0 }
+            .pointingHandCursor()
+            .animation(.easeInOut(duration: 0.12), value: removeHovered)
             .help("Remove")
         }
         .padding(.horizontal, 12)

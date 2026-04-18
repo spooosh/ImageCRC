@@ -110,6 +110,7 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         .disabled(!viewModel.canStart)
+        .pointingHandCursor()
     }
 
     private var startButtonLabel: String {

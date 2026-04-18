@@ -7,6 +7,9 @@ struct DropZoneView: View {
     let onBrowse: () -> Void
 
     @State private var isTargeted = false
+    @State private var isHovering = false
+
+    private var isActive: Bool { isTargeted || isHovering }
 
     var body: some View {
         ZStack {
@@ -14,14 +17,14 @@ struct DropZoneView: View {
                 .strokeBorder(
                     style: StrokeStyle(lineWidth: 2, dash: [8, 6])
                 )
-                .foregroundStyle(isTargeted ? Color.accentColor : Color.secondary.opacity(0.5))
+                .foregroundStyle(isActive ? Color.accentColor : Color.secondary.opacity(0.5))
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(isTargeted
                               ? Color.accentColor.opacity(0.12)
                               : Color.secondary.opacity(0.05))
                 )
-                .animation(.easeInOut(duration: 0.15), value: isTargeted)
+                .animation(.easeInOut(duration: 0.15), value: isActive)
 
             VStack(spacing: 10) {
                 Image(systemName: hasFiles
@@ -43,6 +46,8 @@ struct DropZoneView: View {
         .frame(height: hasFiles ? 110 : 180)
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .onTapGesture { onBrowse() }
+        .onHover { isHovering = $0 }
+        .pointingHandCursor()
         .dropDestination(for: URL.self) { urls, _ in
             onAdd(urls)
             return true

@@ -5,6 +5,8 @@ struct FileListView: View {
     let onRemove: (ImageFile) -> Void
     let onClear: () -> Void
 
+    @State private var clearHovered = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -14,7 +16,10 @@ struct FileListView: View {
                 Button("Clear all", role: .destructive, action: onClear)
                     .buttonStyle(.plain)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(clearHovered ? Color.red : Color.secondary)
+                    .onHover { clearHovered = $0 }
+                    .pointingHandCursor()
+                    .animation(.easeInOut(duration: 0.12), value: clearHovered)
             }
 
             ScrollView {
