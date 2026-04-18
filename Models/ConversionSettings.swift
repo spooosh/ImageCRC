@@ -9,7 +9,7 @@ struct ConversionSettings: Hashable, Sendable {
 
     static let `default` = ConversionSettings(
         quality: 80,
-        outputFormat: .webp,
+        outputFormat: .jpeg,
         outputDirectory: defaultOutputDirectory(),
         resize: ResizeSettings()
     )
