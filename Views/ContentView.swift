@@ -1,7 +1,10 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
     @Bindable var viewModel: ConversionViewModel
+
+    @FocusState private var focusedField: SettingsPanelView.Field?
 
     private static let rightPanelWidth: CGFloat = 420
 
@@ -28,6 +31,13 @@ struct ContentView: View {
                     currentFilename: viewModel.currentFilename,
                     onCancel: { viewModel.cancel() }
                 )
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { focusedField = nil }
+        .onAppear {
+            DispatchQueue.main.async {
+                NSApp.keyWindow?.makeFirstResponder(nil)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.phase)
@@ -85,7 +95,8 @@ struct ContentView: View {
         VStack(spacing: 16) {
             SettingsPanelView(
                 settings: $viewModel.settings,
-                onChooseFolder: { viewModel.chooseOutputDirectory() }
+                onChooseFolder: { viewModel.chooseOutputDirectory() },
+                focus: $focusedField
             )
 
             Spacer(minLength: 0)
