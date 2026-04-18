@@ -66,6 +66,7 @@ enum ImageConverter {
         let concurrency = max(1, ProcessInfo.processInfo.activeProcessorCount)
         let quality = settings.normalizedQuality
         let format = settings.outputFormat
+        let resize = settings.resize
 
         var successes: [ConversionResult] = []
         var failures: [ConversionResult] = []
@@ -84,6 +85,7 @@ enum ImageConverter {
                         outputDir: outputDir,
                         format: format,
                         quality: quality,
+                        resize: resize,
                         resolver: resolver
                     )
                 }
@@ -134,6 +136,7 @@ enum ImageConverter {
         outputDir: URL,
         format: OutputFormat,
         quality: Double,
+        resize: ResizeSettings,
         resolver: FilenameResolver
     ) async -> ConversionResult {
         if Task.isCancelled {
@@ -145,7 +148,11 @@ enum ImageConverter {
             if Task.isCancelled {
                 return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
             }
-            let data = try await ImageEncoder.encode(image: cgImage, to: format, quality: quality)
+            let resized = ImageResizer.resize(cgImage, settings: resize)
+            if Task.isCancelled {
+                return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
+            }
+            let data = try await ImageEncoder.encode(image: resized, to: format, quality: quality)
             if Task.isCancelled {
                 return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
             }

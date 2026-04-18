@@ -5,11 +5,13 @@ struct ConversionSettings: Hashable, Sendable {
     var quality: Int
     var outputFormat: OutputFormat
     var outputDirectory: URL?
+    var resize: ResizeSettings
 
     static let `default` = ConversionSettings(
         quality: 80,
         outputFormat: .webp,
-        outputDirectory: defaultOutputDirectory()
+        outputDirectory: defaultOutputDirectory(),
+        resize: ResizeSettings()
     )
 
     var normalizedQuality: Double {
