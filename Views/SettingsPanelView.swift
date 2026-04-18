@@ -25,9 +25,8 @@ struct SettingsPanelView: View {
                     step: 1
                 )
                 .tint(Color.accentColor)
-                .disabled(settings.outputFormat.isLossless)
-                if settings.outputFormat.isLossless {
-                    Text("PNG is lossless — quality is ignored.")
+                if settings.outputFormat == .png && settings.quality < 100 {
+                    Text("PNG < 100 quantizes via pngquant (indexed-color, up to 256 colors).")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -19,6 +19,7 @@ let package = Package(
             path: ".",
             exclude: [
                 "docs",
+                "img-cc.app",
                 "img-cc.xcodeproj",
                 "project.yml",
                 "Resources",

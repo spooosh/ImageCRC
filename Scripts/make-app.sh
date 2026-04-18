@@ -33,6 +33,24 @@ if ls "${BIN_PATH}"/*.bundle > /dev/null 2>&1; then
     cp -R "${BIN_PATH}"/*.bundle "${APP}/Contents/Resources/" || true
 fi
 
+# Bundle pngquant for PNG lossy compression. We look up via brew first, then PATH.
+PNGQUANT_SRC=""
+if command -v brew >/dev/null 2>&1 && brew --prefix pngquant >/dev/null 2>&1; then
+    PNGQUANT_SRC="$(brew --prefix pngquant)/bin/pngquant"
+elif command -v pngquant >/dev/null 2>&1; then
+    PNGQUANT_SRC="$(command -v pngquant)"
+fi
+
+if [ -n "${PNGQUANT_SRC}" ] && [ -x "${PNGQUANT_SRC}" ]; then
+    mkdir -p "${APP}/Contents/Resources/bin"
+    cp "${PNGQUANT_SRC}" "${APP}/Contents/Resources/bin/pngquant"
+    chmod +x "${APP}/Contents/Resources/bin/pngquant"
+    echo "→ bundled $(${PNGQUANT_SRC} --version 2>&1 | head -1)"
+else
+    echo "⚠ pngquant not found — PNG lossy compression will fail at runtime."
+    echo "  Install via: brew install pngquant"
+fi
+
 cat > "${APP}/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

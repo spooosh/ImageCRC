@@ -145,7 +145,7 @@ enum ImageConverter {
             if Task.isCancelled {
                 return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
             }
-            let data = try ImageEncoder.encode(image: cgImage, to: format, quality: quality)
+            let data = try await ImageEncoder.encode(image: cgImage, to: format, quality: quality)
             if Task.isCancelled {
                 return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
             }
