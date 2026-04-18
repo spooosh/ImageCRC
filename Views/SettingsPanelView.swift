@@ -32,6 +32,45 @@ struct SettingsPanelView: View {
                 }
             }
 
+            // Resize
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Resize", systemImage: "aspectratio")
+                    .font(.subheadline.weight(.semibold))
+                Picker("", selection: $settings.resize.mode) {
+                    ForEach(ResizeSettings.Mode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+
+                HStack(spacing: 8) {
+                    TextField("auto", text: Self.numericBinding($settings.resize.width))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
+                    Text("×").foregroundStyle(.secondary)
+                    TextField("auto", text: Self.numericBinding($settings.resize.height))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
+                    Text("px")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+
+                Toggle(isOn: $settings.resize.enlarge) {
+                    Text("Allow enlargement").font(.subheadline)
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+
+                if !settings.resize.isActive {
+                    Text("Leave both fields empty to skip resizing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             // Output format
             VStack(alignment: .leading, spacing: 6) {
                 Label("Output format", systemImage: "arrow.triangle.2.circlepath")
@@ -72,6 +111,20 @@ struct SettingsPanelView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(Color.secondary.opacity(0.15), lineWidth: 0.5)
+        )
+    }
+
+    private static func numericBinding(_ source: Binding<Int?>) -> Binding<String> {
+        Binding(
+            get: { source.wrappedValue.map(String.init) ?? "" },
+            set: { newValue in
+                let digits = newValue.filter { $0.isASCII && $0.isNumber }
+                if digits.isEmpty {
+                    source.wrappedValue = nil
+                } else if let n = Int(digits), n >= 1 {
+                    source.wrappedValue = n
+                }
+            }
         )
     }
 }
