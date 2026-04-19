@@ -2,7 +2,7 @@ import Foundation
 
 enum ConversionError: LocalizedError, Sendable {
     case decodeFailed(url: URL, underlying: String?)
-    case encodeFailed(format: OutputFormat, underlying: String?)
+    case encodeFailed(format: EncoderFormat, underlying: String?)
     case writeFailed(url: URL, underlying: String?)
     case outputDirectoryMissing
     case unsupportedInput(URL)

@@ -2,12 +2,13 @@ import Foundation
 import CoreGraphics
 
 enum ImageEncoder {
-    static func encode(image: CGImage, to format: OutputFormat, quality: Double) async throws -> Data {
+    static func encode(image: CGImage, to format: EncoderFormat, quality: Double) async throws -> Data {
         switch format {
         case .jpeg: return try JPEGEncoder.encode(image: image, quality: quality)
         case .png:  return try await encodePNG(image: image, quality: quality)
         case .avif: return try AVIFEncoder.encode(image: image, quality: quality)
         case .webp: return try WebPEncoder.encode(image: image, quality: quality)
+        case .heic: return try HEICEncoder.encode(image: image, quality: quality)
         }
     }
 

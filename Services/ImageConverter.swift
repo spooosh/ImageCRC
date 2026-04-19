@@ -143,28 +143,70 @@ enum ImageConverter {
             return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
         }
 
-        do {
-            let cgImage = try ImageDecoder.decode(file: file)
-            if Task.isCancelled {
-                return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
-            }
-            let resized = ImageResizer.resize(cgImage, settings: resize)
-            if Task.isCancelled {
-                return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
-            }
-            let data = try await ImageEncoder.encode(image: resized, to: format, quality: quality)
-            if Task.isCancelled {
-                return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
+        let plan = OutputPlanner.plan(for: file.inputFormat, selected: format)
+        let baseName = file.url.deletingPathExtension().lastPathComponent
+
+        switch plan {
+        case .encode(let encoderFormat):
+            do {
+                let cgImage = try ImageDecoder.decode(file: file)
+                if Task.isCancelled {
+                    return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
+                }
+                let resized = ImageResizer.resize(cgImage, settings: resize)
+                if Task.isCancelled {
+                    return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
+                }
+                let data = try await ImageEncoder.encode(image: resized, to: encoderFormat, quality: quality)
+                if Task.isCancelled {
+                    return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
+                }
+
+                let outputURL = await resolver.resolve(
+                    outputDirectory: outputDir,
+                    baseName: baseName,
+                    ext: encoderFormat.fileExtension
+                )
+                do {
+                    try data.write(to: outputURL, options: .atomic)
+                } catch {
+                    return ConversionResult(
+                        id: UUID(),
+                        source: file.url,
+                        outcome: .failure(.writeFailed(url: outputURL, underlying: error.localizedDescription))
+                    )
+                }
+
+                return ConversionResult(
+                    id: UUID(),
+                    source: file.url,
+                    outcome: .success(
+                        outputURL: outputURL,
+                        originalBytes: file.byteSize,
+                        outputBytes: Int64(data.count)
+                    )
+                )
+            } catch let err as ConversionError {
+                return ConversionResult(id: UUID(), source: file.url, outcome: .failure(err))
+            } catch {
+                return ConversionResult(
+                    id: UUID(),
+                    source: file.url,
+                    outcome: .failure(.decodeFailed(url: file.url, underlying: error.localizedDescription))
+                )
             }
 
-            let baseName = (file.url.deletingPathExtension().lastPathComponent)
+        case .copy:
             let outputURL = await resolver.resolve(
                 outputDirectory: outputDir,
                 baseName: baseName,
-                ext: format.fileExtension
+                ext: "svg"
             )
+            if Task.isCancelled {
+                return ConversionResult(id: UUID(), source: file.url, outcome: .cancelled)
+            }
             do {
-                try data.write(to: outputURL, options: .atomic)
+                try FileManager.default.copyItem(at: file.url, to: outputURL)
             } catch {
                 return ConversionResult(
                     id: UUID(),
@@ -172,23 +214,14 @@ enum ImageConverter {
                     outcome: .failure(.writeFailed(url: outputURL, underlying: error.localizedDescription))
                 )
             }
-
             return ConversionResult(
                 id: UUID(),
                 source: file.url,
                 outcome: .success(
                     outputURL: outputURL,
                     originalBytes: file.byteSize,
-                    outputBytes: Int64(data.count)
+                    outputBytes: file.byteSize
                 )
-            )
-        } catch let err as ConversionError {
-            return ConversionResult(id: UUID(), source: file.url, outcome: .failure(err))
-        } catch {
-            return ConversionResult(
-                id: UUID(),
-                source: file.url,
-                outcome: .failure(.decodeFailed(url: file.url, underlying: error.localizedDescription))
             )
         }
     }

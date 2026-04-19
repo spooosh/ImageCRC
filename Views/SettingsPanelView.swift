@@ -115,6 +115,11 @@ struct SettingsPanelView: View {
                     options: OutputFormat.allCases,
                     title: { $0.displayName }
                 )
+                if settings.outputFormat == .sameAsOrigin {
+                    Text("SVG files are copied as-is — resize and quality don't apply.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
