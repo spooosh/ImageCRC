@@ -25,7 +25,8 @@ let package = Package(
                 "Resources",
                 "Scripts",
                 "Tests",
-                "README.md"
+                "README.md",
+                "CLAUDE.md"
             ],
             sources: [
                 "App",
