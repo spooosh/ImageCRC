@@ -531,11 +531,11 @@ No automated tests for this change — `Tests/Fixtures/` is empty and Swift Test
 - [ ] **Step 1: Rebuild the app bundle**
 
 Run: `./Scripts/make-app.sh`
-Expected: `✓ Built img-cc.app` with bundled `pngquant`.
+Expected: `✓ Built ImageCRC.app` with bundled `pngquant`.
 
 - [ ] **Step 2: Launch**
 
-Run: `open ./img-cc.app`
+Run: `open ./ImageCRC.app`
 
 - [ ] **Step 3: Picker shows five options**
 

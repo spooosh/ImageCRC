@@ -1,4 +1,6 @@
-# img-cc — Native macOS Bulk Image Optimizer/Converter
+# ImageCRC — Native macOS Bulk Image Optimizer/Converter
+
+> Originally drafted as `img-cc`; renamed to `ImageCRC` on 2026-04-19. Design is otherwise unchanged.
 
 **Status:** Approved · **Date:** 2026-04-17
 
@@ -24,15 +26,15 @@ Native macOS app for bulk optimization and format conversion of images. User dro
 - Xcode project with SwiftPM for third-party deps
 - Dependencies:
   - libwebp (via [SDWebImageWebPCoder](https://github.com/SDWebImage/libwebp-Xcode) or a direct libwebp SPM wrapper — pick smallest viable option during implementation)
-  - **pngquant** (GPL v3) — bundled as a subprocess binary in `img-cc.app/Contents/Resources/bin/pngquant`; sourced from `brew --prefix pngquant` during `make-app.sh`. Dev runs fall back to `/opt/homebrew/bin/pngquant` / `/usr/local/bin/pngquant`.
+  - **pngquant** (GPL v3) — bundled as a subprocess binary in `ImageCRC.app/Contents/Resources/bin/pngquant`; sourced from `brew --prefix pngquant` during `make-app.sh`. Dev runs fall back to `/opt/homebrew/bin/pngquant` / `/usr/local/bin/pngquant`.
 - Tests: **Swift Testing** framework + small binary fixtures per format
 
 ## 4. Architecture
 
 ```
-img-cc/
+ImageCRC/
 ├── App/
-│   └── ImgCCApp.swift              # @main, single Window scene
+│   └── ImageCRCApp.swift           # @main, single Window scene
 ├── Models/
 │   ├── ImageFile.swift             # URL, size, UTI, thumbnail cache ref
 │   ├── OutputFormat.swift          # enum: jpeg, png, webp, avif
@@ -88,7 +90,7 @@ img-cc/
   3. **SettingsPanelView** — horizontal:
      - Quality slider (0–100, default **80**) with live value label.
      - Format segmented picker: JPG · PNG · WebP · AVIF (default **WebP**).
-     - Output folder: read-only text field + "Choose…" button (uses `NSOpenPanel`). Default: `~/Pictures/img-cc`.
+     - Output folder: read-only text field + "Choose…" button (uses `NSOpenPanel`). Default: `~/Pictures/ImageCRC`.
   4. **Action bar** — "Clear" (secondary) and "Convert N images" (primary). Primary disabled until files + output dir present.
 - **ProgressOverlayView**: full-window overlay while converting. Circular progress ring (SwiftUI `Canvas`), pulsating gradient, animated checkmark sweep around the ring, filename + counter below. "Cancel" button.
 - **CompletionSheetView**: sheet with success icon, "Converted X of Y images", optional "Show errors" disclosure list, "Done" button. Output folder auto-opens on sheet appearance.
@@ -118,7 +120,7 @@ img-cc/
 
 - **App Sandbox disabled** for MVP (direct FS access to chosen output folder; simpler, no security-scoped bookmarks).
 - Code signing: ad-hoc (`codesign -s -`) — sufficient for local run; distribution is out of scope.
-- Because `pngquant` is GPL v3, any distributed `img-cc.app` binary is a combined work under GPL v3. The project is intended to ship as open source under a GPL-compatible license; App Store distribution is explicitly out of scope.
+- Because `pngquant` is GPL v3, any distributed `ImageCRC.app` binary is a combined work under GPL v3. The project is intended to ship as open source under a GPL-compatible license; App Store distribution is explicitly out of scope.
 
 ## 11. Testing Strategy
 

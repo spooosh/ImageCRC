@@ -1,4 +1,4 @@
-# img-cc
+# ImageCRC
 
 Native macOS app for bulk image optimization and format conversion.
 
@@ -10,10 +10,10 @@ Native macOS app for bulk image optimization and format conversion.
 
 ```bash
 ./Scripts/make-app.sh
-open ./img-cc.app
+open ./ImageCRC.app
 ```
 
-The script does `swift build -c release`, assembles a `.app` bundle with an ad-hoc signature, and leaves it at `./img-cc.app`.
+The script does `swift build -c release`, assembles a `.app` bundle with an ad-hoc signature, and leaves it at `./ImageCRC.app`.
 
 ## Requirements
 
