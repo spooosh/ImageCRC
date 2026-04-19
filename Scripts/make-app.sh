@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build img-cc with Swift Package Manager and assemble a native .app bundle.
+# Build ImageCRC with Swift Package Manager and assemble a native .app bundle.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 CONFIG=${CONFIG:-release}
-APP_NAME="img-cc"
-BUNDLE_ID="com.spooosh.img-cc"
+APP_NAME="ImageCRC"
+BUNDLE_ID="com.spooosh.image-crc"
 VERSION="0.1.0"
 BUILD="1"
 
@@ -67,7 +67,7 @@ cat > "${APP}/Contents/Info.plist" <<PLIST
     <key>CFBundleName</key>
     <string>${APP_NAME}</string>
     <key>CFBundleDisplayName</key>
-    <string>img-cc</string>
+    <string>ImageCRC</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

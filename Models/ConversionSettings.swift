@@ -27,6 +27,6 @@ struct ConversionSettings: Hashable, Sendable {
         guard let pictures = fm.urls(for: .picturesDirectory, in: .userDomainMask).first else {
             return nil
         }
-        return pictures.appendingPathComponent("img-cc", isDirectory: true)
+        return pictures.appendingPathComponent("ImageCRC", isDirectory: true)
     }
 }

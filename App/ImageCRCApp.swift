@@ -1,11 +1,11 @@
 import SwiftUI
 
 @main
-struct ImgCCApp: App {
+struct ImageCRCApp: App {
     @State private var viewModel = ConversionViewModel()
 
     var body: some Scene {
-        Window("img-cc", id: "main") {
+        Window("ImageCRC", id: "main") {
             ContentView(viewModel: viewModel)
                 .frame(minWidth: 900, minHeight: 640)
         }

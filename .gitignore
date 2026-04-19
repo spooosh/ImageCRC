@@ -8,7 +8,7 @@ Package.resolved
 build/
 DerivedData/
 *.xcodeproj/
-img-cc.app/
+ImageCRC.app/
 
 
 ### macOS template

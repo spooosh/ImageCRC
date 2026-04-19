@@ -73,7 +73,7 @@ struct ContentView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("img-cc")
+                Text("ImageCRC")
                     .font(.title2.bold())
                 Text("Bulk image optimizer & converter")
                     .font(.caption)
