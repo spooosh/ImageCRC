@@ -51,6 +51,14 @@ else
     echo "  Install via: brew install pngquant"
 fi
 
+if [ -f "Resources/AppIcon.icns" ]; then
+    cp "Resources/AppIcon.icns" "${APP}/Contents/Resources/AppIcon.icns"
+    echo "→ bundled AppIcon.icns"
+else
+    echo "⚠ Resources/AppIcon.icns not found — app will use generic icon."
+    echo "  Generate via: ./Scripts/make-icon.sh"
+fi
+
 cat > "${APP}/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -60,6 +68,8 @@ cat > "${APP}/Contents/Info.plist" <<PLIST
     <string>en</string>
     <key>CFBundleExecutable</key>
     <string>${APP_NAME}</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>${BUNDLE_ID}</string>
     <key>CFBundleInfoDictionaryVersion</key>
