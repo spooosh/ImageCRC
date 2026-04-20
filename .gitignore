@@ -9,6 +9,7 @@ build/
 DerivedData/
 *.xcodeproj/
 ImageCRC.app/
+*.dmg
 
 
 ### macOS template
