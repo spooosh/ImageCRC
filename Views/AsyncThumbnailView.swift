@@ -26,7 +26,7 @@ struct AsyncThumbnailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.black.opacity(0.08), lineWidth: 0.5)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
         )
         .task(id: url) {
             let pixelSize = size * 3
