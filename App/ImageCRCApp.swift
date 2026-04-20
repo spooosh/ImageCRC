@@ -3,10 +3,11 @@ import SwiftUI
 @main
 struct ImageCRCApp: App {
     @State private var viewModel = ConversionViewModel()
+    @AppStorage("appAppearance") private var appearance: AppAppearance = .system
 
     var body: some Scene {
         Window("ImageCRC", id: "main") {
-            ContentView(viewModel: viewModel)
+            ContentView(viewModel: viewModel, appearance: $appearance)
                 .frame(minWidth: 900, minHeight: 640)
         }
         .windowResizability(.contentMinSize)

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Bindable var viewModel: ConversionViewModel
+    @Binding var appearance: AppAppearance
 
     @FocusState private var focusedField: SettingsPanelView.Field?
 
@@ -9,7 +10,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Color(nsColor: .windowBackgroundColor).ignoresSafeArea()
 
             HStack(spacing: 0) {
                 leftColumn
@@ -36,6 +37,9 @@ struct ContentView: View {
         .onTapGesture { focusedField = nil }
         .animation(.easeInOut(duration: 0.25), value: viewModel.phase)
         .animation(.easeInOut(duration: 0.25), value: viewModel.files.count)
+        .onChange(of: appearance, initial: true) { oldValue, newValue in
+            AppearanceApplier.apply(newValue, animated: oldValue != newValue)
+        }
         .sheet(isPresented: completionBinding) {
             if let summary = viewModel.summary {
                 CompletionSheetView(summary: summary) {
@@ -80,6 +84,7 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            AppearancePicker(appearance: $appearance)
         }
     }
 
