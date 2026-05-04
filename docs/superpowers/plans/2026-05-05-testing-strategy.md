@@ -913,7 +913,7 @@ git commit -m "test: drop placeholder PackageWiringTests, coverage absorbed into
 - [ ] `swift test` exits 0
 - [ ] At least 30 tests across 10 suites pass
 - [ ] No SwiftPM warnings introduced by test target (pre-existing warnings about `ImageCRC.xcodeproj` exclude and `ImageCRC-0.1.0.dmg` are out of scope)
-- [ ] No code outside `Tests/` was modified (Phase 1 is pure-add; refactors live in Phase 3)
+- [ ] Production code changes limited to protocol-conformance additions required by tests (e.g. `Equatable` on `FileOutputPlan`); no refactors of production logic — those live in Phase 3
 - [ ] User approval to write the Phase 2 plan
 
 ---
