@@ -256,7 +256,7 @@ struct OutputPlannerTests {
 }
 ```
 
-Note: `FileOutputPlan` and `EncoderFormat` are `Hashable`/`Equatable`-by-synthesis since both are pure enums; `==` works.
+Note: `EncoderFormat` is `Equatable` via its declared `Hashable` conformance. `FileOutputPlan` carries an associated value (`.encode(EncoderFormat)`), so Swift does not auto-synthesise `Equatable` — explicit conformance must be added to the declaration in `Services/OutputPlanner.swift` (one-character diff: `enum FileOutputPlan: Equatable, Sendable`). This protocol-conformance addition is permitted by Phase 1's done criteria; ship it as a separate `chore(planner):` commit before the test commit.
 
 - [ ] **Step 2: Run the test**
 
