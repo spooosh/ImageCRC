@@ -40,10 +40,13 @@ struct FilenameResolverTests {
     func parallelUnique() async throws {
         let tmp = try TempDirectory()
         let r = FilenameResolver()
-        async let a = r.resolve(outputDirectory: tmp.url, baseName: "p", ext: "png")
-        async let b = r.resolve(outputDirectory: tmp.url, baseName: "p", ext: "png")
-        async let c = r.resolve(outputDirectory: tmp.url, baseName: "p", ext: "png")
-        async let d = r.resolve(outputDirectory: tmp.url, baseName: "p", ext: "png")
+        // Task.detached forces each call onto its own task; without it, async let
+        // on a non-async actor method serialises through the actor's executor
+        // and the test never actually exercises concurrent contention.
+        async let a = Task.detached { await r.resolve(outputDirectory: tmp.url, baseName: "p", ext: "png") }.value
+        async let b = Task.detached { await r.resolve(outputDirectory: tmp.url, baseName: "p", ext: "png") }.value
+        async let c = Task.detached { await r.resolve(outputDirectory: tmp.url, baseName: "p", ext: "png") }.value
+        async let d = Task.detached { await r.resolve(outputDirectory: tmp.url, baseName: "p", ext: "png") }.value
         let urls = await [a, b, c, d]
         let paths = urls.map { $0.path }
         #expect(Set(paths).count == 4, "all parallel resolves must yield unique paths; got \(paths)")
