@@ -35,6 +35,13 @@ let package = Package(
                 "Services",
                 "Views"
             ]
+        ),
+        .testTarget(
+            name: "ImageCRCTests",
+            dependencies: ["ImageCRC"],
+            path: "Tests",
+            exclude: ["Fixtures"],
+            sources: ["UnitTests"]
         )
     ]
 )
