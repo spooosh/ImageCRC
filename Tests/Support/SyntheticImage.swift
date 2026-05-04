@@ -1,4 +1,4 @@
-// Tests/UnitTests/Support/SyntheticImage.swift
+// Tests/Support/SyntheticImage.swift
 import CoreGraphics
 import Foundation
 

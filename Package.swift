@@ -41,7 +41,7 @@ let package = Package(
             dependencies: ["ImageCRC"],
             path: "Tests",
             exclude: ["Fixtures"],
-            sources: ["UnitTests"]
+            sources: ["Support", "UnitTests"]
         )
     ]
 )

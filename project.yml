@@ -68,6 +68,7 @@ targets:
     platform: macOS
     deploymentTarget: "14.0"
     sources:
+      - path: Tests/Support
       - path: Tests/UnitTests
     dependencies:
       - target: ImageCRC
