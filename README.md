@@ -1,10 +1,29 @@
-# ImageCRC
+<div align="center">
+  <img src="Resources/AppIcon-master.png" alt="ImageCRC" width="160" height="160" />
 
-Native macOS app for bulk image optimization and format conversion.
+  <h1>ImageCRC</h1>
 
-- **Input**: JPG, JPEG, PNG, SVG, WebP, AVIF, HEIC
-- **Output**: JPG, PNG, WebP, AVIF
-- Quality control (0–100%), output folder picker, animated progress overlay, auto-opens the output folder when done.
+  <p><strong>Bulk image optimization and format conversion for macOS.</strong></p>
+
+  <p>
+    <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-1d1d1f?logo=apple&logoColor=white" />
+    <img alt="Swift 5.10" src="https://img.shields.io/badge/Swift-5.10-F05138?logo=swift&logoColor=white" />
+    <img alt="SwiftUI" src="https://img.shields.io/badge/UI-SwiftUI-7c3aed" />
+  </p>
+</div>
+
+---
+
+Drop a folder of images, pick a format and quality, hit **Start**. ImageCRC fans the work out across every CPU core, shows a smooth progress overlay, and opens the output folder in Finder when it's done. Everything runs locally — no uploads, no telemetry.
+
+## Features
+
+- **Input:** JPG · JPEG · PNG · SVG · WebP · AVIF · HEIC
+- **Output:** JPG · PNG · WebP · AVIF
+- Quality slider (0–100%) with format-aware semantics — JPEG/AVIF/WebP scale linearly, PNG goes lossless at 100% and is quantized via `pngquant` below
+- Optional resize (Fit / Fill with centered crop) before encoding; never upscales unless asked
+- Parallel conversion bounded by `activeProcessorCount`, cancellable mid-run
+- Light / Dark / System appearance toggle with animated transition
 
 ## Requirements
 
@@ -28,14 +47,30 @@ All other tools used by the build/packaging scripts (`codesign`, `sips`, `iconut
 open ./ImageCRC.app
 ```
 
-The script does `swift build -c release`, assembles a `.app` bundle with an ad-hoc signature, and leaves it at `./ImageCRC.app`.
+The script runs `swift build -c release`, assembles a `.app` bundle with an ad-hoc signature, and leaves it at `./ImageCRC.app`. Set `CONFIG=debug` for a debug build.
+
+### Packaging
+
+```bash
+./Scripts/make-dmg.sh    # → ImageCRC-<version>.dmg
+./Scripts/make-icon.sh   # regenerate Resources/AppIcon.icns from the 1024×1024 master
+```
 
 ## Stack
 
-- Swift + SwiftUI (single-window, `@Observable` state)
-- ImageIO for JPG/PNG/HEIC/AVIF; libwebp (via `SDWebImage/libwebp-Xcode` SwiftPM package) for WebP encoding; `NSImage` for SVG rasterization
-- `TaskGroup`-based parallel conversion (bounded by CPU count), cancellable job
+- **Swift + SwiftUI** — single-window app, `@Observable` state, no AppKit shell.
+- **ImageIO** for JPG / PNG / HEIC / AVIF · **libwebp** (via `SDWebImage/libwebp-Xcode`) for WebP · **NSImage** for SVG rasterization · **pngquant** subprocess for PNG lossy.
+- **`TaskGroup`-based** parallel pipeline bounded by CPU count, cooperative cancellation between decode → resize → encode → write.
+- **MVVM** split — `ConversionViewModel` is the only bridge between the UI and an `AsyncStream<ConversionEvent>` driven by `ImageConverter`.
 
-## Design doc
+See [`CLAUDE.md`](CLAUDE.md) for the full architecture map.
 
-See `docs/superpowers/specs/2026-04-17-img-cc-design.md`.
+## Design docs
+
+- [Original design](docs/superpowers/specs/2026-04-17-img-cc-design.md) — quality semantics, concurrency model
+- [Resize feature](docs/superpowers/specs/2026-04-18-resize-design.md)
+- [Dark theme](docs/superpowers/specs/2026-04-20-dark-theme-design.md)
+
+## Distribution note
+
+`pngquant` is bundled into the `.app` and is licensed under GPL v3, so any redistributed binary is a combined GPL v3 work — and therefore not eligible for the Mac App Store.
