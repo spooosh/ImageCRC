@@ -34,7 +34,7 @@ enum EncoderFormat: String, Hashable, Sendable {
 
 /// Per-file execution plan: either we re-encode to a specific encoder target,
 /// or we copy the source file verbatim (SVG on the `.sameAsOrigin` path).
-enum FileOutputPlan: Sendable {
+enum FileOutputPlan: Equatable, Sendable {
     case encode(EncoderFormat)
     case copy
 }
