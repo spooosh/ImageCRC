@@ -30,6 +30,9 @@ struct InputFormatTests {
             let url = URL(fileURLWithPath: "/tmp/file.\(ext)")
             #expect(InputFormat(url: url) == nil, "should reject .\(ext)")
         }
+        // Extensionless filename — different URL parse path than trailing dot
+        let noExt = URL(fileURLWithPath: "/tmp/file")
+        #expect(InputFormat(url: noExt) == nil, "should reject extensionless file")
     }
 
     @Test("allowedExtensions covers exactly the recognized set")
