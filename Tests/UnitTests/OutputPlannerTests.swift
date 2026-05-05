@@ -42,3 +42,43 @@ struct OutputPlannerTests {
         #expect(plan == .copy)
     }
 }
+
+@Suite("OutputPlanner — exhaustiveness")
+struct OutputPlannerExhaustivenessTests {
+    @Test("every InputFormat has an explicit sameAsOrigin plan",
+          arguments: InputFormat.allCases)
+    func sameAsOriginExhaustive(input: InputFormat) {
+        let plan = OutputPlanner.plan(for: input, selected: .sameAsOrigin)
+        // Plan must be either an explicit encode for that format, or a copy.
+        // A bogus default-clause that returns .encode(.jpeg) would fail this
+        // for every input that isn't actually JPEG.
+        switch (input, plan) {
+        case (.jpeg, .encode(.jpeg)),
+             (.png,  .encode(.png)),
+             (.webp, .encode(.webp)),
+             (.avif, .encode(.avif)),
+             (.heic, .encode(.heic)),
+             (.svg,  .copy):
+            break  // expected
+        default:
+            Issue.record("Unexpected sameAsOrigin plan for \(input): \(plan)")
+        }
+    }
+
+    @Test("every InputFormat × every direct OutputFormat encodes to that format",
+          arguments: InputFormat.allCases,
+          [OutputFormat.jpeg, .png, .webp, .avif])
+    func directFormatsExhaustive(input: InputFormat, selected: OutputFormat) {
+        let expected: EncoderFormat = {
+            switch selected {
+            case .jpeg: return .jpeg
+            case .png:  return .png
+            case .webp: return .webp
+            case .avif: return .avif
+            case .sameAsOrigin: fatalError("not reachable")
+            }
+        }()
+        #expect(OutputPlanner.plan(for: input, selected: selected) == .encode(expected),
+                "for input=\(input) selected=\(selected)")
+    }
+}
