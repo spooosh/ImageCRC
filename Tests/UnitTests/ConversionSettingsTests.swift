@@ -11,9 +11,13 @@ struct ConversionSettingsTests {
         #expect(s.quality == 80)
         #expect(s.outputFormat == .jpeg)
         #expect(s.resize == ResizeSettings())
-        // outputDirectory may be nil if the user has no Pictures dir,
-        // but on a normal macOS install it should resolve.
-        #expect(s.outputDirectory?.lastPathComponent == "ImageCRC")
+        // outputDirectory depends on FileManager.urls(for: .picturesDirectory).
+        // Some sandboxed CI runners lack ~/Pictures; in that case the resolver
+        // returns nil, which is a valid state. When non-nil, the directory
+        // must end in "ImageCRC".
+        if let dir = s.outputDirectory {
+            #expect(dir.lastPathComponent == "ImageCRC")
+        }
     }
 
     @Test("normalizedQuality clamps and scales")
