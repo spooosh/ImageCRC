@@ -1,6 +1,7 @@
 // Tests/UnitTests/InputFormatTests.swift
 import Foundation
 import Testing
+import UniformTypeIdentifiers
 @testable import ImageCRC
 
 @Suite("InputFormat")
@@ -39,5 +40,27 @@ struct InputFormatTests {
     func allowedExtensionsSet() {
         let expected: Set<String> = ["jpg", "jpeg", "png", "svg", "webp", "avif", "heic"]
         #expect(InputFormat.allowedExtensions == expected)
+    }
+}
+
+@Suite("InputFormat — UTTypes")
+struct InputFormatUTTypeTests {
+    @Test("allowedUTTypes always includes the standard formats")
+    func standardTypesPresent() {
+        let ids = Set(InputFormat.allowedUTTypes.map { $0.identifier })
+        #expect(ids.contains(UTType.jpeg.identifier))
+        #expect(ids.contains(UTType.png.identifier))
+        #expect(ids.contains(UTType.heic.identifier))
+        #expect(ids.contains(UTType.svg.identifier))
+    }
+
+    @Test("allowedUTTypes includes WebP and AVIF on systems that recognise them")
+    func optionalTypesIncluded() {
+        let ids = Set(InputFormat.allowedUTTypes.map { $0.identifier })
+        // The static initializer drops these silently if the lookup fails.
+        // A regression in the system registry would shrink the set; pin the
+        // expectation that they are present on macOS 14+.
+        #expect(ids.contains("org.webmproject.webp"))
+        #expect(ids.contains("public.avif"))
     }
 }
