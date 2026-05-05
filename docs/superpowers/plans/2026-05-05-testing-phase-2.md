@@ -685,7 +685,7 @@ Append to `enum SyntheticImage`:
             fatalError("SyntheticImage.jpegData: destination creation failed")
         }
         let props: [CFString: Any] = [
-            kCGImagePropertyOrientation: orientation
+            kCGImagePropertyOrientation: exifOrientation
         ]
         CGImageDestinationAddImage(dest, image, props as CFDictionary)
         guard CGImageDestinationFinalize(dest) else {
@@ -746,14 +746,14 @@ Current test target block:
         )
 ```
 
-New:
+New (note: explicit `.gitkeep` exclude is defensive — SwiftPM normally skips dotfiles via `.skipsHiddenFiles` but pinning the exclude prevents future SwiftPM behaviour shifts from emitting an "unhandled file" warning that would violate the Phase 2 done-when "no new warnings" rule):
 
 ```swift
         .testTarget(
             name: "ImageCRCTests",
             dependencies: ["ImageCRC"],
             path: "Tests",
-            exclude: ["Fixtures"],
+            exclude: ["Fixtures", "CodecTests/.gitkeep"],
             sources: ["Support", "UnitTests", "CodecTests"]
         )
 ```
@@ -1118,13 +1118,42 @@ struct EXIFOrientationTests {
         #expect(decoded.width == 50)
         #expect(decoded.height == 100)
     }
+
+    @Test("orientation=6 places the original left edge at the top after rotation")
+    func orientation6PixelGeometry() throws {
+        // Without this test, a transposed rotation matrix (e.g. 90° CCW where
+        // we wanted CW) would still pass the dim-swap assertions above.
+        // Sample an actual pixel to verify the rotation is geometrically right.
+        let tmp = try TempDirectory()
+        // Horizontal gradient: red at x=0, blue at x=W-1. Source 100w × 50h.
+        let src = SyntheticImage.gradient(width: 100, height: 50)
+        let data = SyntheticImage.jpegData(from: src, exifOrientation: 6)
+        let url = tmp.url.appendingPathComponent("rotated6-pixel.jpg")
+        try data.write(to: url)
+
+        let decoded = try ImageIODecoder.decode(url: url)
+        #expect(decoded.width == 50)
+        #expect(decoded.height == 100)
+
+        // After orientation=6 (90° CW for display), the original left edge (red)
+        // becomes the new top edge. Sample a pixel near top-center; R must
+        // dominate B with enough slack for JPEG quantisation.
+        let buf = try RGBABuffer.make(from: decoded)
+        let x = 25
+        let y = 5
+        let i = y * buf.bytesPerRow + x * 4
+        let r = buf.bytes[i]
+        let b = buf.bytes[i + 2]
+        #expect(r > b + 50,
+                "expected red-dominant pixel near top of orientation=6 decoded image; got R=\(r), B=\(b)")
+    }
 }
 ```
 
 - [ ] **Step 2: Verify the test fails (probe)**
 
 Run: `swift test --filter EXIF`
-Expected: 1/3 pass (only `orientation1NoOp`). The two rotation tests fail because `ImageIODecoder.decode` does not apply orientation.
+Expected: 1/4 pass (only `orientation1NoOp`). The three rotation-affected tests fail because `ImageIODecoder.decode` does not apply orientation.
 
 - [ ] **Step 3: Apply the fix to `Services/Decoders/ImageIODecoder.swift`**
 
@@ -1242,10 +1271,10 @@ enum ImageIODecoder {
 - [ ] **Step 4: Verify the fix**
 
 Run: `swift test --filter EXIF`
-Expected: 3/3 pass.
+Expected: 4/4 pass.
 
 Run full suite: `swift test`
-Expected: all green; total count went up by 3.
+Expected: all green; total count went up by 4.
 
 - [ ] **Step 5: Commit (test + fix together — single logical change)**
 
@@ -1266,7 +1295,15 @@ dimensions.
 
 Adds three probe tests in Tests/CodecTests/EXIFOrientationTests.swift
 covering normal (1), 90° CW (6), and 90° CCW (8) — the three orientations
-real-world cameras actually emit.
+real-world cameras actually emit. A sentinel-pixel test confirms the
+rotation matrix is geometrically correct (not just dim-swapping correct).
+
+Known limitation: this reads orientation from the top-level
+kCGImagePropertyOrientation key. ImageIO usually promotes EXIF
+orientation there for JPEGs and HEICs, but for some edited files the
+value lives only inside kCGImagePropertyTIFFDictionary. If a real-world
+file with this layout surfaces, fall back to the nested lookup before
+the rotation defaults to .up.
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 EOF
@@ -1288,6 +1325,8 @@ let colorSpace: CGColorSpace = {
 ```
 
 This **does** preserve the input colorspace when it's RGB. So Display P3 should round-trip. The reviewer's flag may have been speculative. Verify before fixing.
+
+**Smoke-only scope:** this probe checks **colorspace name preservation**, not chromaticity preservation. With the resizer's current `bitsPerComponent: 8` bitmap config, P3 wide-gamut chromaticities can clip silently even when the colorspace label survives. **Chromaticity-level preservation is a Phase 4 concern** (perceptual quality + SSIM) — Phase 2 deliberately scopes this task to "the colorspace label round-trips" only.
 
 **This task includes a production-code change ONLY if the probe finds a real bug.**
 
@@ -1441,15 +1480,6 @@ struct PNGQuantizerTests {
         #expect(quantized.starts(with: [0x89, 0x50, 0x4E, 0x47]),
                 "pngquant output must remain a valid PNG")
     }
-
-    @Test("pngquant signature: returns Data on success")
-    func signatureCheck() async {
-        // Compile-time signature pin: PNGQuantizer.quantize is async throws and
-        // returns Data. If signature changes (e.g. to AsyncStream<Data>), the
-        // codebase needs callers updated, not just this test.
-        let _: (Data, Int) async throws -> Data = PNGQuantizer.quantize(pngData:quality:)
-        #expect(true)
-    }
 }
 ```
 
@@ -1461,7 +1491,7 @@ Run locally without the env var:
 swift test --filter PNGQuantizer
 ```
 
-Expected: 1/2 pass (the signature check). The happy-path test reports as skipped (Swift Testing displays skipped tests but doesn't count them as failures).
+Expected: the test reports as skipped (Swift Testing displays skipped tests but doesn't count them as failures).
 
 Run with the env var (only if you have pngquant installed via `brew install pngquant`):
 
@@ -1469,7 +1499,7 @@ Run with the env var (only if you have pngquant installed via `brew install pngq
 IMAGECRC_TEST_REQUIRE_PNGQUANT=1 swift test --filter PNGQuantizer
 ```
 
-Expected: 2/2 pass.
+Expected: 1/1 pass.
 
 - [ ] **Step 3: Commit**
 
@@ -1481,8 +1511,7 @@ test(codec): PNGQuantizer happy path gated on IMAGECRC_TEST_REQUIRE_PNGQUANT
 The pngquant subprocess depends on a system binary not present on every
 developer machine. Gate the round-trip test on an env var so swift test
 stays hermetic in dev but Phase 6 CI (which installs pngquant first)
-runs it. Includes a signature pin so a future refactor of
-PNGQuantizer.quantize surfaces compile errors here, not at call sites.
+runs it.
 
 The missing-binary failure mode is documented but not automated; testing
 it deterministically would require shimming Bundle.main lookups.
@@ -1583,6 +1612,11 @@ EOF
 - [ ] pngquant happy-path is gated on `IMAGECRC_TEST_REQUIRE_PNGQUANT=1` and passes when set
 - [ ] SVG decode produces non-zero output
 - [ ] User approval to write Phase 3 plan
+
+**Deliberately NOT covered in Phase 2** (acknowledged scope gaps):
+- `OutputFormat.fileExtension` / `isLossless` / `displayName` — the original Phase 1 Task 7 suite was deleted in commit `40ae2d7` per the party-mode review's Path A as "trivial property-getter tests with refactor-tax > bug-prevention value". Only `OutputFormat.utType` is covered here (Task 6) because that exercises a runtime UTType registry lookup that can drift across macOS versions. Rationale documented in `40ae2d7` commit body.
+- Chromaticity-level color preservation — Task 14 is a smoke-only probe of colorspace *name* round-trip; pixel-level wide-gamut precision is a Phase 4 concern.
+- pngquant missing-binary deterministic test — would require shimming `Bundle.main` lookup; documented in Task 14's commit but skipped from automation.
 
 ---
 
