@@ -70,6 +70,7 @@ targets:
     sources:
       - path: Tests/Support
       - path: Tests/UnitTests
+      - path: Tests/CodecTests
     dependencies:
       - target: ImageCRC
     settings:
