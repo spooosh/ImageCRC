@@ -61,4 +61,47 @@ struct FilenameResolverTests {
         let after = await r.resolve(outputDirectory: tmp.url, baseName: "x", ext: "png")
         #expect(after.lastPathComponent == "x.png")
     }
+
+    @Test("empty extension produces a trailing-dot filename")
+    func emptyExtension() async throws {
+        let tmp = try TempDirectory()
+        let r = FilenameResolver()
+        let url = await r.resolve(outputDirectory: tmp.url, baseName: "photo", ext: "")
+        // Document the current behaviour: "photo." with a trailing dot.
+        // If a future change rejects empty ext, this test will fail loudly
+        // and the caller can be updated.
+        #expect(url.lastPathComponent == "photo.")
+    }
+
+    @Test("leading-dot extension produces a double-dot filename")
+    func leadingDotExtension() async throws {
+        let tmp = try TempDirectory()
+        let r = FilenameResolver()
+        // Current behaviour: ".jpg" gets prepended with another dot → "photo..jpg".
+        // This documents the contract: callers must NOT include the leading dot.
+        let url = await r.resolve(outputDirectory: tmp.url, baseName: "photo", ext: ".jpg")
+        #expect(url.lastPathComponent == "photo..jpg",
+                "callers must pass extension without leading dot")
+    }
+
+    @Test("missing output directory still returns a candidate path")
+    func missingOutputDirectory() async throws {
+        // The resolver does not create the directory — it only reserves names.
+        // If the caller hands it a non-existent dir, fileExists is always false
+        // and the bare name is returned. The eventual write is the caller's
+        // responsibility.
+        let nonExistent = URL(fileURLWithPath: "/tmp/imagecrc-resolver-missing-\(UUID().uuidString)")
+        let r = FilenameResolver()
+        let url = await r.resolve(outputDirectory: nonExistent, baseName: "x", ext: "png")
+        #expect(url.lastPathComponent == "x.png")
+        #expect(url.deletingLastPathComponent().path == nonExistent.path)
+    }
+
+    @Test("baseName with spaces and unicode is preserved verbatim")
+    func unicodeBaseName() async throws {
+        let tmp = try TempDirectory()
+        let r = FilenameResolver()
+        let url = await r.resolve(outputDirectory: tmp.url, baseName: "фото 1", ext: "jpg")
+        #expect(url.lastPathComponent == "фото 1.jpg")
+    }
 }
