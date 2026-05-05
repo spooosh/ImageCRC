@@ -109,4 +109,53 @@ struct ImageResizerFillTests {
         #expect(out.width == 100)
         #expect(out.height == 50)
     }
+
+    @Test("fill with both dims and enlarge=false caps at source dims")
+    func fillNoUpscale() {
+        // 100x100 source, target 400x400 fill, enlarge=false.
+        // raw scale = max(4, 4) = 4 → clamped to 1 → intermediate 100x100;
+        // fill geometry: outputW = min(100, 400) = 100; same for H.
+        let img = SyntheticImage.solid(width: 100, height: 100)
+        var s = ResizeSettings()
+        s.width = 400
+        s.height = 400
+        s.mode = .fill
+        s.enlarge = false
+        let out = ImageResizer.resize(img, settings: s)
+        #expect(out.width == 100, "fill+enlarge=false must not upscale")
+        #expect(out.height == 100)
+    }
+
+    @Test("fill with enlarge=true upscales then crops to target")
+    func fillEnlargeAndCrop() {
+        // 100x50 source, target 200x200 fill, enlarge=true.
+        // raw scale = max(2, 4) = 4 → intermediate 400x200;
+        // fill geometry: outputW = min(400, 200) = 200; outputH = min(200, 200) = 200;
+        // drawX = (200 - 400) / 2 = -100, drawY = 0 — centered horizontal crop.
+        let img = SyntheticImage.solid(width: 100, height: 50)
+        var s = ResizeSettings()
+        s.width = 200
+        s.height = 200
+        s.mode = .fill
+        s.enlarge = true
+        let out = ImageResizer.resize(img, settings: s)
+        #expect(out.width == 200)
+        #expect(out.height == 200)
+    }
+
+    @Test("fill with aspect-matching dims produces no crop")
+    func fillNoCropWhenAspectMatches() {
+        // 200x100 source, target 100x50 (same 2:1 aspect) fill.
+        // scale = max(0.5, 0.5) = 0.5 → intermediate 100x50;
+        // fill geometry: outputW = min(100, 100), outputH = min(50, 50);
+        // drawX = drawY = 0.
+        let img = SyntheticImage.solid(width: 200, height: 100)
+        var s = ResizeSettings()
+        s.width = 100
+        s.height = 50
+        s.mode = .fill
+        let out = ImageResizer.resize(img, settings: s)
+        #expect(out.width == 100)
+        #expect(out.height == 50)
+    }
 }
