@@ -25,7 +25,18 @@ enum ImageIODecoder {
         // 1 = up, 2 = upMirrored, 3 = down, 4 = downMirrored,
         // 5 = leftMirrored, 6 = right (90° CW), 7 = rightMirrored, 8 = left (90° CCW).
         let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
-        let orientationRaw = props?[kCGImagePropertyOrientation] as? UInt32 ?? 1
+        // Top-level orientation key first, then nested TIFF dict for files that
+        // only store it there (some edited JPEGs/HEICs).
+        let orientationRaw: UInt32 = {
+            if let top = props?[kCGImagePropertyOrientation] as? UInt32 {
+                return top
+            }
+            if let tiff = props?[kCGImagePropertyTIFFDictionary] as? [CFString: Any],
+               let nested = tiff[kCGImagePropertyTIFFOrientation] as? UInt32 {
+                return nested
+            }
+            return 1
+        }()
         guard let orientation = CGImagePropertyOrientation(rawValue: orientationRaw) else {
             return raw
         }

@@ -1,6 +1,8 @@
 // Tests/CodecTests/EXIFOrientationTests.swift
 import Foundation
 import CoreGraphics
+import ImageIO
+import UniformTypeIdentifiers
 import Testing
 @testable import ImageCRC
 
@@ -75,5 +77,49 @@ struct EXIFOrientationTests {
         let b = Int(buf.bytes[i + 2])
         #expect(r > b + 50,
                 "expected red-dominant pixel near top of orientation=6 decoded image; got R=\(r), B=\(b)")
+    }
+
+    @Test("orientation in nested TIFF dictionary is honoured when top-level is absent")
+    func tiffDictFallback() throws {
+        // Synthesise a JPEG with the orientation tag stored ONLY in the TIFF
+        // dictionary by writing through CGImageDestination with a custom props
+        // dict that omits the top-level key.
+        let tmp = try TempDirectory()
+        let src = SyntheticImage.gradient(width: 100, height: 50)
+        let mutableData = NSMutableData()
+        let dest = try #require(CGImageDestinationCreateWithData(
+            mutableData,
+            UTType.jpeg.identifier as CFString,
+            1,
+            nil
+        ))
+        let tiffDict: [CFString: Any] = [
+            kCGImagePropertyTIFFOrientation: 6,
+        ]
+        let props: [CFString: Any] = [
+            kCGImagePropertyTIFFDictionary: tiffDict,
+        ]
+        CGImageDestinationAddImage(dest, src, props as CFDictionary)
+        #expect(CGImageDestinationFinalize(dest))
+        let url = tmp.url.appendingPathComponent("tiff-only.jpg")
+        try (mutableData as Data).write(to: url)
+
+        // Precondition verification: confirm ImageIO did NOT promote the TIFF
+        // orientation to the top level. If it did, this test cannot validate
+        // the fallback path — record an issue and skip the assertion.
+        let writtenSource = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let writtenProps = CGImageSourceCopyPropertiesAtIndex(writtenSource, 0, nil) as? [CFString: Any]
+        let topLevelOrient = writtenProps?[kCGImagePropertyOrientation] as? UInt32
+        let nestedOrient = (writtenProps?[kCGImagePropertyTIFFDictionary] as? [CFString: Any])?[kCGImagePropertyTIFFOrientation] as? UInt32
+
+        if topLevelOrient != nil {
+            Issue.record("ImageIO promoted TIFF-dict orientation to the top-level key on write; this test cannot validate the fallback path. topLevel=\(topLevelOrient ?? 0), nested=\(nestedOrient ?? 0). Consider an alternative synthesis (manual EXIF byte injection) or accept this test as inactive on this macOS version.")
+            return
+        }
+        #expect(nestedOrient == 6, "precondition: TIFF dict must carry orientation=6")
+
+        let decoded = try ImageIODecoder.decode(url: url)
+        #expect(decoded.width == 50, "TIFF-dict orientation=6 must apply via fallback")
+        #expect(decoded.height == 100)
     }
 }
