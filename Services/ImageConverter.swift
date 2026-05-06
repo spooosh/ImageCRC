@@ -1,17 +1,17 @@
 import Foundation
 import CoreGraphics
 
-enum ImageConverter {
+struct ImageConverter: Converter {
     /// Run a batch conversion job. Returns a stream of events the caller can observe for
     /// progress, per-file completion, and the final summary. Cancelling the consumer (or the
     /// enclosing Task) cancels all in-flight work.
-    static func convert(
+    func convert(
         files: [ImageFile],
         settings: ConversionSettings
     ) -> AsyncStream<ConversionEvent> {
         AsyncStream { continuation in
             let job = Task.detached(priority: .userInitiated) {
-                await run(files: files, settings: settings, continuation: continuation)
+                await Self.run(files: files, settings: settings, continuation: continuation)
             }
             continuation.onTermination = { @Sendable _ in
                 job.cancel()

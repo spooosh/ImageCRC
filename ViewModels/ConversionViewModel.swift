@@ -27,6 +27,13 @@ final class ConversionViewModel {
 
     private var job: Task<Void, Never>?
 
+    @ObservationIgnored
+    private let converter: any Converter
+
+    init(converter: any Converter = ImageConverter()) {
+        self.converter = converter
+    }
+
     // MARK: - File management
 
     /// Add URLs (files or folders). Folders are scanned shallowly for supported extensions.
@@ -123,8 +130,9 @@ final class ConversionViewModel {
         let snapshot = files
         let settingsSnapshot = settings
 
+        let converter = self.converter
         job = Task { [weak self] in
-            let stream = ImageConverter.convert(files: snapshot, settings: settingsSnapshot)
+            let stream = converter.convert(files: snapshot, settings: settingsSnapshot)
             for await event in stream {
                 guard let self else { return }
                 self.apply(event)
