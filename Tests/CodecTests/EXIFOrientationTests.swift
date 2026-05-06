@@ -79,6 +79,30 @@ struct EXIFOrientationTests {
                 "expected red-dominant pixel near top of orientation=6 decoded image; got R=\(r), B=\(b)")
     }
 
+    @Test("less-common orientations preserve or swap dims as expected",
+          arguments: [
+            (orient: 2, swap: false),  // upMirrored
+            (orient: 3, swap: false),  // down (180°)
+            (orient: 4, swap: false),  // downMirrored
+            (orient: 5, swap: true),   // leftMirrored (90° CCW + flip)
+            (orient: 7, swap: true),   // rightMirrored (90° CW + flip)
+          ])
+    func lessCommonOrientations(orient: Int, swap: Bool) throws {
+        let tmp = try TempDirectory()
+        let src = SyntheticImage.gradient(width: 100, height: 50)
+        let data = SyntheticImage.jpegData(from: src, exifOrientation: orient)
+        let url = tmp.url.appendingPathComponent("o\(orient).jpg")
+        try data.write(to: url)
+        let decoded = try ImageIODecoder.decode(url: url)
+        if swap {
+            #expect(decoded.width == 50, "orientation=\(orient): expected swap to 50w")
+            #expect(decoded.height == 100, "orientation=\(orient): expected swap to 100h")
+        } else {
+            #expect(decoded.width == 100, "orientation=\(orient): expected no swap")
+            #expect(decoded.height == 50)
+        }
+    }
+
     @Test("orientation in nested TIFF dictionary is honoured when top-level is absent")
     func tiffDictFallback() throws {
         // Synthesise a JPEG with the orientation tag stored ONLY in the TIFF
