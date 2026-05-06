@@ -71,6 +71,7 @@ targets:
       - path: Tests/Support
       - path: Tests/UnitTests
       - path: Tests/CodecTests
+      - path: Tests/IntegrationTests
     dependencies:
       - target: ImageCRC
     settings:
