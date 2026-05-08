@@ -15,25 +15,25 @@ import Foundation
 enum CodecCapability {
     /// True iff AVIF encode via ImageIO works on this host. Apple Silicon with
     /// hardware AV1 returns true; virtualised macOS CI runners lacking the
-    /// AppleAVEVA IOService return false. Probe uses a 128x128 gradient —
-    /// matches the size and entropy profile of the heaviest matrix tests, so
-    /// a passing probe guarantees the real tests will reach the same codepath.
-    /// Solid-colour or trivially-small inputs can short-circuit through a
-    /// fast path that masks the hardware failure (false-positive `true`).
+    /// AppleAVEVA IOService return false. Probe at q=1.0 with a 128x128
+    /// gradient — matches the strictest matrix-test case (lossless mode,
+    /// real entropy) so a passing probe guarantees every gated test reaches
+    /// the same codepath.
     static let avifEncodeAvailable: Bool = {
         let img = SyntheticImage.gradient(width: 128, height: 128)
-        return (try? AVIFEncoder.encode(image: img, quality: 0.5)) != nil
+        return (try? AVIFEncoder.encode(image: img, quality: 1.0)) != nil
     }()
 
-    /// True iff HEIC encode via ImageIO works on this host. Same hardware
-    /// dependency as AVIF. HEIC is more permissive than AVIF — destination
-    /// creation succeeds even without the HEVC driver, only
-    /// `CGImageDestinationFinalize` fails, and only when there's real entropy
-    /// to encode. The gradient probe at the size the matrix tests actually
-    /// use is the only reliable signal.
+    /// True iff HEIC encode via ImageIO works on this host. HEIC is more
+    /// permissive than AVIF: destination creation and mid-quality encodes
+    /// can succeed via fallback paths even without the HEVC driver, while
+    /// q=1.0 (lossless HEVC) goes through `CGImageDestinationFinalize`
+    /// which depends on the missing AppleAVEVA driver. Mid-quality probes
+    /// returned false-positive `true` against tests that include q=1.0;
+    /// probing at q=1.0 directly is the only reliable signal.
     static let heicEncodeAvailable: Bool = {
         let img = SyntheticImage.gradient(width: 128, height: 128)
-        return (try? HEICEncoder.encode(image: img, quality: 0.5)) != nil
+        return (try? HEICEncoder.encode(image: img, quality: 1.0)) != nil
     }()
 
     /// True iff a pngquant binary is reachable on a known PATH location. The
