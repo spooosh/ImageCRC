@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct ContentView: View {
     @Bindable var viewModel: ConversionViewModel
     @Binding var appearance: AppAppearance
