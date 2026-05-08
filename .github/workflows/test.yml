@@ -24,6 +24,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Opt JavaScript-based actions (checkout/cache/upload-artifact) into Node 24
+# ahead of GitHub's forced migration on 2026-06-02. Validates compatibility
+# early; if anything breaks, fall back via ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   test:
     name: swift test (macos-14)
