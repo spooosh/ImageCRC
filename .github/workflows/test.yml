@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+      - "tests/**"
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: swift test (macos-14)
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      IMAGECRC_TEST_REQUIRE_PNGQUANT: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pngquant
+        run: brew install pngquant
+
+      - name: Print toolchain versions
+        run: |
+          swift --version
+          xcodebuild -version
+          pngquant --version
+
+      - name: swift test
+        run: swift test
