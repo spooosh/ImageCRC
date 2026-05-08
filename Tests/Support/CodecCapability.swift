@@ -15,21 +15,24 @@ import Foundation
 enum CodecCapability {
     /// True iff AVIF encode via ImageIO works on this host. Apple Silicon with
     /// hardware AV1 returns true; virtualised macOS CI runners lacking the
-    /// AppleAVEVA IOService return false (encode throws `encodeFailed`).
-    /// Probe uses a 64x64 image — small enough to be sub-millisecond on real
-    /// hardware, large enough to exercise the full encode pipeline (1x1
-    /// can short-circuit special cases that mask the hardware failure).
+    /// AppleAVEVA IOService return false. Probe uses a 128x128 gradient —
+    /// matches the size and entropy profile of the heaviest matrix tests, so
+    /// a passing probe guarantees the real tests will reach the same codepath.
+    /// Solid-colour or trivially-small inputs can short-circuit through a
+    /// fast path that masks the hardware failure (false-positive `true`).
     static let avifEncodeAvailable: Bool = {
-        let img = SyntheticImage.solid(width: 64, height: 64)
+        let img = SyntheticImage.gradient(width: 128, height: 128)
         return (try? AVIFEncoder.encode(image: img, quality: 0.5)) != nil
     }()
 
     /// True iff HEIC encode via ImageIO works on this host. Same hardware
-    /// dependency as AVIF (HEVC encoder via AppleAVEVA). On CI runners the
-    /// destination creation succeeds but `CGImageDestinationFinalize` fails;
-    /// the 64x64 probe catches that before any test runs.
+    /// dependency as AVIF. HEIC is more permissive than AVIF — destination
+    /// creation succeeds even without the HEVC driver, only
+    /// `CGImageDestinationFinalize` fails, and only when there's real entropy
+    /// to encode. The gradient probe at the size the matrix tests actually
+    /// use is the only reliable signal.
     static let heicEncodeAvailable: Bool = {
-        let img = SyntheticImage.solid(width: 64, height: 64)
+        let img = SyntheticImage.gradient(width: 128, height: 128)
         return (try? HEICEncoder.encode(image: img, quality: 0.5)) != nil
     }()
 
