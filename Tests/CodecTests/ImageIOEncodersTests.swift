@@ -48,9 +48,11 @@ struct ImageIOEncodersRoundTripTests {
     }
 
     @Test("AVIF round-trip preserves dimensions",
-          .timeLimit(.minutes(1)))
+          .timeLimit(.minutes(1)),
+          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_AVIF"] != "1"))
     func avifRoundTrip() throws {
-        // AVIF encode is slow on macOS 14 — bound the test.
+        // AVIF encode is slow on macOS 14 — bound the test. Virtualised CI
+        // runners without hardware AV1 may take 10x longer; gate via env.
         let tmp = try TempDirectory()
         let src = SyntheticImage.gradient(width: 64, height: 32)
         let data = try AVIFEncoder.encode(image: src, quality: 0.8)

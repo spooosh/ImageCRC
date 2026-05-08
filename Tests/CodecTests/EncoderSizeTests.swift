@@ -37,7 +37,8 @@ struct EncoderSizeBoundsTests {
     }
 
     @Test("AVIF q=80 output is smaller than raw, larger than zero",
-          .timeLimit(.minutes(1)))
+          .timeLimit(.minutes(1)),
+          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_AVIF"] != "1"))
     func avifBounds() throws {
         let src = SyntheticImage.gradient(width: 256, height: 256)
         let data = try AVIFEncoder.encode(image: src, quality: 0.8)

@@ -86,6 +86,7 @@ struct HEICQualityMatrixTests {
 struct AVIFQualityMatrixTests {
     @Test("AVIF SSIM thresholds across quality matrix",
           .timeLimit(.minutes(1)),
+          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_AVIF"] != "1"),
           arguments: [
             // macOS ImageIO AVIF rejects q=1.0 (lossless codepath unsupported);
             // q=0.99 is the practical ceiling — observed SSIM ≈ 0.9999.

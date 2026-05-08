@@ -6,6 +6,16 @@ import Testing
 
 @Suite("ImageDecoder — dispatch by InputFormat")
 struct ImageDecoderDispatchTests {
+    /// AVIF encode is slow on virtualised CI runners (no hardware AV1).
+    /// Filter it out of the dispatch sweep when IMAGECRC_TEST_SKIP_AVIF=1.
+    private static let formatsToTest: [InputFormat] = {
+        let all: [InputFormat] = [.jpeg, .png, .heic, .avif, .webp]
+        if ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_AVIF"] == "1" {
+            return all.filter { $0 != .avif }
+        }
+        return all
+    }()
+
     private func encodeAndWrap(
         format: InputFormat, in tmp: TempDirectory
     ) throws -> ImageFile {
@@ -33,7 +43,7 @@ struct ImageDecoderDispatchTests {
     }
 
     @Test("decode dispatches correctly for each raster InputFormat",
-          arguments: [InputFormat.jpeg, .png, .heic, .avif, .webp])
+          arguments: ImageDecoderDispatchTests.formatsToTest)
     func dispatch(_ format: InputFormat) throws {
         let tmp = try TempDirectory()
         let file = try encodeAndWrap(format: format, in: tmp)

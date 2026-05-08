@@ -28,6 +28,11 @@ jobs:
     timeout-minutes: 30
     env:
       IMAGECRC_TEST_REQUIRE_PNGQUANT: "1"
+      # AVIF software encoding on virtualised macos-14 runners (no hardware
+      # AV1) can take minutes per file — even 4 quality cases blow past
+      # job-timeout. Skip AVIF encode tests on CI; they remain enabled
+      # locally where Apple Silicon hardware AV1 keeps them sub-second.
+      IMAGECRC_TEST_SKIP_AVIF: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
