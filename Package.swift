@@ -40,7 +40,7 @@ let package = Package(
             name: "ImageCRCTests",
             dependencies: ["ImageCRC"],
             path: "Tests",
-            exclude: ["Fixtures", "CodecTests/.gitkeep", "IntegrationTests/.gitkeep"],
+            exclude: ["Fixtures", "CodecTests/.gitkeep", "IntegrationTests/.gitkeep", "UITests"],
             sources: ["Support", "UnitTests", "CodecTests", "IntegrationTests"]
         )
     ]

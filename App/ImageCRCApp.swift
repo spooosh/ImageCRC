@@ -9,6 +9,9 @@ struct ImageCRCApp: App {
         Window("ImageCRC", id: "main") {
             ContentView(viewModel: viewModel, appearance: $appearance)
                 .frame(minWidth: 900, minHeight: 640)
+                .onAppear {
+                    UITestSupport.applyLaunchArguments(to: viewModel)
+                }
         }
         .windowResizability(.contentMinSize)
         .windowStyle(.hiddenTitleBar)
