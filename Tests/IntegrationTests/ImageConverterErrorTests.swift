@@ -39,11 +39,13 @@ struct ImageConverterErrorTests {
         #expect(final.failures.count == 2)
         #expect(final.successes.isEmpty)
         for failure in final.failures {
-            if case .failure(let err) = failure.outcome {
-                #expect(err.errorDescription?.contains("Output directory") == true,
-                        "outcome must surface outputDirectoryMissing; got \(err)")
-            } else {
-                Issue.record("expected .failure; got \(failure.outcome)")
+            switch failure.outcome {
+            case .failure(.outputDirectoryMissing):
+                break  // expected
+            case .failure(let other):
+                Issue.record("expected .outputDirectoryMissing; got .\(other)")
+            default:
+                Issue.record("expected .failure(.outputDirectoryMissing); got \(failure.outcome)")
             }
         }
     }
@@ -70,12 +72,13 @@ struct ImageConverterErrorTests {
         let final = try #require(summary)
         #expect(final.failures.count == 1)
         #expect(final.successes.isEmpty)
-        if case .failure(let err) = final.failures[0].outcome {
-            #expect(err.errorDescription?.contains("write") == true
-                    || err.errorDescription?.contains("Could not") == true,
-                    "outcome must surface a write/create failure; got \(err)")
-        } else {
-            Issue.record("expected .failure; got \(final.failures[0].outcome)")
+        switch final.failures[0].outcome {
+        case .failure(.writeFailed):
+            break  // expected — the createDirectory failure surfaces as .writeFailed
+        case .failure(let other):
+            Issue.record("expected .writeFailed; got .\(other)")
+        default:
+            Issue.record("expected .failure(.writeFailed); got \(final.failures[0].outcome)")
         }
     }
 }
