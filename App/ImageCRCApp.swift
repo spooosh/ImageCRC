@@ -1,6 +1,7 @@
 import SwiftUI
 
 @main
+@MainActor
 struct ImageCRCApp: App {
     @State private var viewModel = ConversionViewModel()
     @AppStorage("appAppearance") private var appearance: AppAppearance = .system
