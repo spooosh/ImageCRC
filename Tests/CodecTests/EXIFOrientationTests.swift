@@ -156,4 +156,45 @@ struct EXIFOrientationTests {
             #expect(decoded.height == 100)
         }
     }
+
+    @Test("less-common orientations place red gradient stop at expected sentinel pixel",
+          arguments: [
+            // (orient, sampleX, sampleY, swappedDims)
+            // After applying the orientation, sample one pixel from the displayed
+            // image and assert it's red-dominant. Coordinates use a 5px inset from
+            // the corner to avoid JPEG block-edge artifacts.
+            //
+            // Source: 100w × 50h, horizontal red→blue gradient (red at x=0).
+            // Expected display geometry per EXIF spec:
+            //   2 (upMirrored):    flip horizontal → red at x=W-1 (right edge), no swap
+            //   3 (down/180°):     rotate 180 → red at (W-1, H-1) (bottom-right), no swap
+            //   4 (downMirrored):  flip vertical → red at (0, H-1) (bottom-left), no swap
+            //   5 (leftMirrored):  transpose → red at (0, 0) (top-left of swapped 50w×100h)
+            //   7 (rightMirrored): transpose+flip → red at (W'=H-1=49, H'=W-1=99) (bottom-right of swapped)
+            (orient: 2, x: 95, y:  5, swap: false),
+            (orient: 3, x: 95, y: 45, swap: false),
+            (orient: 4, x:  5, y: 45, swap: false),
+            (orient: 5, x:  5, y:  5, swap: true),
+            (orient: 7, x: 45, y: 95, swap: true),
+          ])
+    func lessCommonOrientationsPixelGeometry(orient: Int, x: Int, y: Int, swap: Bool) throws {
+        let tmp = try TempDirectory()
+        let src = SyntheticImage.gradient(width: 100, height: 50)
+        let data = SyntheticImage.jpegData(from: src, exifOrientation: orient)
+        let url = tmp.url.appendingPathComponent("o\(orient)-pixel.jpg")
+        try data.write(to: url)
+
+        let decoded = try ImageIODecoder.decode(url: url)
+        let expectedW = swap ? 50 : 100
+        let expectedH = swap ? 100 : 50
+        #expect(decoded.width == expectedW)
+        #expect(decoded.height == expectedH)
+
+        let buf = try RGBABuffer.make(from: decoded)
+        let i = y * buf.bytesPerRow + x * 4
+        let r = Int(buf.bytes[i])
+        let b = Int(buf.bytes[i + 2])
+        #expect(r > b + 50,
+                "orientation=\(orient): expected red-dominant pixel at (\(x),\(y)); got R=\(r), B=\(b)")
+    }
 }

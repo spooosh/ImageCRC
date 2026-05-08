@@ -94,19 +94,22 @@ enum ImageIODecoder {
         case .downMirrored:
             ctx.translateBy(x: 0, y: CGFloat(outH))
             ctx.scaleBy(x: 1, y: -1)
-        case .leftMirrored:
-            ctx.translateBy(x: CGFloat(outW), y: 0)
-            ctx.rotate(by: .pi / 2)
+        case .leftMirrored:  // EXIF 5 = transpose: source(x, y) → display(y, x)
+            // Output canvas is srcH×srcW (dimensions swapped). Vertical flip + 90° CCW
+            // rotation maps source left-edge (red) to display top-left.
+            ctx.translateBy(x: CGFloat(outW), y: CGFloat(outH))
             ctx.scaleBy(x: 1, y: -1)
+            ctx.rotate(by: .pi / 2)
         case .right:
             // EXIF 6: rotate 90° CW for display.
             // In CG's Y-up space, 90° CW = rotate by -π/2.
             // translate(0, outH) shifts the origin so the rotated image lands in-canvas.
             ctx.translateBy(x: 0, y: CGFloat(outH))
             ctx.rotate(by: -.pi / 2)
-        case .rightMirrored:
-            ctx.scaleBy(x: -1, y: 1)
-            ctx.translateBy(x: -CGFloat(outW), y: CGFloat(outH))
+        case .rightMirrored:  // EXIF 7 = anti-transpose: source(x, y) → display(H-1-y, W-1-x)
+            // Output canvas is srcH×srcW (dimensions swapped). Swap coordinates
+            // (scale(1,-1) + rotate(-π/2)) maps source left-edge (red) to display bottom-right.
+            ctx.scaleBy(x: 1, y: -1)
             ctx.rotate(by: -.pi / 2)
         case .left:
             // EXIF 8: rotate 90° CCW for display.
