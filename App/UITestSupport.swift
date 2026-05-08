@@ -32,14 +32,23 @@ enum UITestSupport {
                 .deletingLastPathComponent()
                 .appendingPathComponent("ui-test-inputs", isDirectory: true)
             try? FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
-            var seeded: [URL] = []
-            for i in 0..<count {
-                let url = stagingDir.appendingPathComponent("preload-\(i).png")
-                if writeSyntheticPNG(width: side, height: side, to: url) {
-                    seeded.append(url)
+            // Generate off main so the runloop stays responsive long enough
+            // for macOS accessibility to finish loading. Large gradient images
+            // synthesised on main blocked startup past XCUITest's setup
+            // window. Hop back to MainActor for the VM update.
+            Task.detached(priority: .userInitiated) {
+                var seeded: [URL] = []
+                for i in 0..<count {
+                    let url = stagingDir.appendingPathComponent("preload-\(i).png")
+                    if writeSyntheticPNG(width: side, height: side, to: url) {
+                        seeded.append(url)
+                    }
+                }
+                let captured = seeded
+                await MainActor.run {
+                    viewModel.addURLs(captured)
                 }
             }
-            viewModel.addURLs(seeded)
         }
     }
 
@@ -48,7 +57,6 @@ enum UITestSupport {
         return args[i + 1]
     }
 
-    @discardableResult
     private static func writeSyntheticPNG(width: Int, height: Int, to url: URL) -> Bool {
         let cs = CGColorSpaceCreateDeviceRGB()
         let bmp = CGImageAlphaInfo.premultipliedLast.rawValue
@@ -57,8 +65,27 @@ enum UITestSupport {
             data: nil, width: width, height: height,
             bitsPerComponent: 8, bytesPerRow: 0, space: cs, bitmapInfo: bmp
         ) else { return false }
-        ctx.setFillColor(red: 0.6, green: 0.4, blue: 0.9, alpha: 1)
-        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        // Solid colours compress to ~0 DCT energy and the cancel-flow batch
+        // would finish in <300ms on Apple Silicon — too fast for the progress
+        // overlay to land in the AX tree. A diagonal red→blue gradient drawn
+        // via CGContext.drawLinearGradient (optimised path) gives realistic
+        // PNG decode + JPEG encode wall-clock time without spending CPU on a
+        // per-pixel Swift loop.
+        let colors: [CGColor] = [
+            CGColor(red: 1, green: 0, blue: 0, alpha: 1),
+            CGColor(red: 0, green: 0, blue: 1, alpha: 1),
+        ]
+        let locations: [CGFloat] = [0, 1]
+        if let gradient = CGGradient(colorsSpace: cs,
+                                     colors: colors as CFArray,
+                                     locations: locations) {
+            ctx.drawLinearGradient(
+                gradient,
+                start: .zero,
+                end: CGPoint(x: CGFloat(width), y: CGFloat(height)),
+                options: []
+            )
+        }
         guard let img = ctx.makeImage() else { return false }
         guard let dest = CGImageDestinationCreateWithURL(
             url as CFURL, UTType.png.identifier as CFString, 1, nil
