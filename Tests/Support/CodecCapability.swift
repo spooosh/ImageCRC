@@ -16,15 +16,20 @@ enum CodecCapability {
     /// True iff AVIF encode via ImageIO works on this host. Apple Silicon with
     /// hardware AV1 returns true; virtualised macOS CI runners lacking the
     /// AppleAVEVA IOService return false (encode throws `encodeFailed`).
+    /// Probe uses a 64x64 image — small enough to be sub-millisecond on real
+    /// hardware, large enough to exercise the full encode pipeline (1x1
+    /// can short-circuit special cases that mask the hardware failure).
     static let avifEncodeAvailable: Bool = {
-        let img = SyntheticImage.solid(width: 1, height: 1)
+        let img = SyntheticImage.solid(width: 64, height: 64)
         return (try? AVIFEncoder.encode(image: img, quality: 0.5)) != nil
     }()
 
     /// True iff HEIC encode via ImageIO works on this host. Same hardware
-    /// dependency as AVIF (HEVC encoder via AppleAVEVA).
+    /// dependency as AVIF (HEVC encoder via AppleAVEVA). On CI runners the
+    /// destination creation succeeds but `CGImageDestinationFinalize` fails;
+    /// the 64x64 probe catches that before any test runs.
     static let heicEncodeAvailable: Bool = {
-        let img = SyntheticImage.solid(width: 1, height: 1)
+        let img = SyntheticImage.solid(width: 64, height: 64)
         return (try? HEICEncoder.encode(image: img, quality: 0.5)) != nil
     }()
 
