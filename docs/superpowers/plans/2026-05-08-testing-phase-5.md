@@ -4,7 +4,7 @@
 
 **Goal:** Cover the SwiftUI happy path and cancel flow with XCUITest — launch the app, drive it from "files added" through "completion sheet", assert externally observable state via accessibility identifiers. Establish a `bundle.ui-testing` target wired into `xcodebuild test` so Phase 6 can run it on `macos-14` runners.
 
-**Architecture:** XCUITest target is XcodeGen-only (SPM does not support UI test bundles). The test app gets a single in-process test hook (`IMAGECRC_UI_TEST=1` env var) that swaps `AppKitFileChooser` for a launch-arg-driven fake. Files are seeded via launch arguments — never a real `NSOpenPanel`, never disk-state outside a per-test temp dir. Cancellation is observable because the production conversion of multiple decoded-encoded files is bounded by `activeProcessorCount`; with N+1 large images the cancel button reliably fires before completion. Synthetic fixtures are built into the same temp dir as the output via a debug-only "preload synthetic files" launch-arg path.
+**Architecture:** XCUITest target is XcodeGen-only (SPM does not support UI test bundles). The test app gets a single in-process launch-arg hook (`IMAGECRC_UI_TEST=1` env var) that seeds the `ConversionViewModel`'s `outputDirectory` and `files` from launch arguments. No real `NSOpenPanel`, no disk-state outside a per-test temp dir. Cancellation is observable because the cancel-flow test seeds **large** synthetic images (4096×4096 PNGs) that take real wall-clock time to decode/encode — `Task.isCancelled` checks inside `ImageConverter.processOne` short-circuit work in progress. No production-side `Converter` wrapper is needed; the slow flow comes from the actual file size, not from artificial delays. Synthetic fixtures are built into the temp dir via the launch-arg path.
 
 **Tech Stack:** Swift 5.10, XCTest + XCUITest (UI tests cannot use `import Testing`/Swift Testing — `@available` and lifecycle differ), Xcode 26, macOS 14 deployment target. Existing test infra (`Tests/Support/SyntheticImage`, `TempDirectory`) is reused inside the **app process** for the test-mode preload — a small symbol exposure is needed on the app side so the UI-test target doesn't need `@testable` access (which is impossible across XCUITest's two-process boundary anyway).
 
@@ -17,21 +17,21 @@
 | # | Section | Tasks | Goal |
 |---|---------|-------|------|
 | Pre | xcodebuild fix | T1 | Disambiguate `PRODUCT_MODULE_NAME` between app and test target so `xcodebuild test` works at all |
-| A | UI test affordances | T2–T4 | Accessibility identifiers on key views; UI-test-mode launch hook in app; preload-fixtures fake `FileChooser` |
-| B | XCUITest target + smoke | T5–T7 | `bundle.ui-testing` target; happy-path test; cancel-flow test |
-| C | Wire-up + docs | T8 | `xcodebuild test` invocation documented; CLAUDE.md updated; final smoke run |
+| A | UI test affordances | T2–T3 | Launch-arg hook in app; accessibility identifiers on key views |
+| B | XCUITest target + smoke | T4–T6 | `bundle.ui-testing` target; happy-path test; cancel-flow test |
+| C | Wire-up + docs | T7 | `xcodebuild test` invocation documented; CLAUDE.md updated; final smoke run |
 
 **Phase 5 done when:**
 
-- `xcodebuild test -scheme ImageCRC -destination 'platform=macOS,arch=arm64'` exits 0 with the existing 92 unit/codec/integration tests **plus** at least 2 new UI tests across 1 new XCUITest suite
+- `xcodebuild test -scheme ImageCRC -destination 'platform=macOS,arch=arm64'` exits 0 with the existing 92 unit/codec/integration tests **plus** at least 2 new UI tests across 1 new XCUITest target
 - `swift test` exits 0 unchanged at 92 tests / 32 suites / 1 known issue (XCUITest changes are XcodeGen-only and must not regress SwiftPM)
 - `bundle.ui-testing` target wired in `project.yml` with sources at `Tests/UITests/`
-- Production app gains stable accessibility identifiers on: drop zone, browse-files button, output-folder button, quality slider, format picker, start button, cancel button, completion sheet, dismiss button, file list, output-folder display
-- App-side UI-test-mode launch hook lives behind a single `#if DEBUG`-friendly env-var check; ships in the production binary but is dormant (zero behaviour change without `IMAGECRC_UI_TEST=1`)
+- Production app gains stable accessibility identifiers on: drop zone, output-folder button, quality slider, format picker, start button, cancel button, completion sheet, dismiss button, file list, output-folder display, progress overlay
+- App-side UI-test-mode launch hook lives behind a single env-var check; ships in the production binary but is dormant (zero behaviour change without `IMAGECRC_UI_TEST=1`)
 - `Scripts/make-app.sh` and `make-dmg.sh` are NOT touched by this phase
 - User approval to write Phase 6 plan
 
-**Estimated time:** 1–2 days. The novel work is T2 (UI-test-mode launch hook) and T3 (accessibility wiring); T5–T7 are mostly mechanical.
+**Estimated time:** 1–2 days. The novel work is T2 (UI-test-mode launch hook) and T3 (accessibility wiring); T4–T6 are mostly mechanical.
 
 **Deliberately deferred:**
 - Real `NSOpenPanel` automation (driving the system file picker via XCUITest). The launch-arg + fake-chooser path is cheaper, deterministic, and CI-portable. Trade-off: one production codepath (the actual `AppKitFileChooser.runModal`) has no XCUITest coverage. This was already true in Phases 1–4 and is the universal trade-off for sandboxed-panel UI testing.
@@ -44,16 +44,15 @@
 ## File structure delta
 
 ```
-project.yml                              # modify: PRODUCT_MODULE_NAME on tests, add ImageCRCUITests target
-Views/ContentView.swift                  # modify: accessibilityIdentifier on drop zone, start button, file list
-Views/DropZoneView.swift                 # modify: accessibilityIdentifier
-Views/SettingsPanelView.swift            # modify: accessibilityIdentifier on slider, picker, folder button
+project.yml                              # modify: scope PRODUCT_MODULE_NAME per target, add ImageCRCUITests target
+Views/ContentView.swift                  # modify: accessibilityIdentifier on start button, file list
+Views/DropZoneView.swift                 # modify: accessibilityIdentifier on drop zone
+Views/SettingsPanelView.swift            # modify: accessibilityIdentifier on slider, picker, folder button, folder path
 Views/CompletionSheetView.swift          # modify: accessibilityIdentifier on sheet root, dismiss button
-Views/ProgressOverlayView.swift          # modify: accessibilityIdentifier on cancel button
-ViewModels/FileChooser.swift             # modify: extract into its own file or extend with a launch-arg-driven fake (decision: append)
-App/ImageCRCApp.swift                    # modify: read launch args, swap FileChooser if IMAGECRC_UI_TEST=1
+Views/ProgressOverlayView.swift          # modify: accessibilityIdentifier on overlay root, cancel button
+App/ImageCRCApp.swift                    # modify: invoke UITestSupport.applyLaunchArguments on first appear
 App/UITestSupport.swift                  # NEW: launch-arg parsing + preloaded synthetic files generator (compiled into the prod binary, dormant by default)
-Tests/UITests/ImageCRCUITests.swift      # NEW: happy-path + cancel XCUITest cases
+Tests/UITests/ImageCRCUITests.swift      # NEW: happy-path + cancel-flow XCUITest cases
 docs/superpowers/plans/2026-05-08-testing-phase-5.md  # this file
 CLAUDE.md                                # modify: document `xcodebuild test` invocation
 ```
@@ -137,14 +136,16 @@ EOF
 
 ---
 
-### Task 2: App-side launch-arg hook + preloaded-fixture FileChooser
+### Task 2: App-side launch-arg hook for UI test seeding
 
 **Why:** XCUITest is a separate process from the app under test, so dependency injection of test doubles is impossible at compile time. The only handshake is `app.launchEnvironment` and `app.launchArguments` set on the `XCUIApplication` from the test, then read by the app at startup. The hook needs to:
 
 1. Detect `IMAGECRC_UI_TEST=1` in the process environment.
 2. Parse a `--ui-test-output-dir <path>` launch arg → set as `settings.outputDirectory`.
-3. Parse a `--ui-test-preload-files <count>` launch arg → generate that many synthetic 64x64 PNG files in a temp subdir and call `vm.addURLs(...)` once the VM exists.
-4. (For cancel-flow test) Parse a `--ui-test-slow-conversion <ms>` launch arg → no-op for now in production code, but `Converter` injection point lets the app swap in a `SlowConverter` that sleeps `ms` milliseconds per file before delegating to the real `ImageConverter`.
+3. Parse a `--ui-test-preload-files <count>` launch arg → generate that many synthetic PNG files in a temp subdir and call `vm.addURLs(...)` once the VM exists.
+4. Parse a `--ui-test-preload-size <pixels>` launch arg (default 256) → side length of each generated PNG. The cancel-flow test passes 4096 to make conversion observably slow without any production-side wrapper.
+
+The slow flow for cancel-flow tests comes from naturally-large input images (4096×4096 RGBA = 67MB raw per image; encoding 8 of them takes seconds even on Apple Silicon). `Task.isCancelled` checks already inside `ImageConverter.processOne` short-circuit work-in-progress when the cancel button fires. No production-side `Converter` wrapper or sleep injection is needed — the file size IS the slowness knob.
 
 **Constraint:** the hook must be a **single** call site at app startup — not scattered across views. The `ImageCRCApp` `body` reads it once on first appear and applies side-effects to the `viewModel`.
 
@@ -186,6 +187,9 @@ enum UITestSupport {
         if let countStr = value(for: "--ui-test-preload-files", in: args),
            let count = Int(countStr), count > 0,
            let outputDir = viewModel.settings.outputDirectory {
+            // Side length: default 256, override with --ui-test-preload-size for
+            // cancel-flow tests that need observably slow conversion.
+            let side = (value(for: "--ui-test-preload-size", in: args)).flatMap(Int.init) ?? 256
             // Stage synthetic PNGs in a sibling tempdir under outputDir so they
             // share the same lifetime; XCUITest may delete the parent on tearDown.
             let stagingDir = outputDir
@@ -195,7 +199,7 @@ enum UITestSupport {
             var seeded: [URL] = []
             for i in 0..<count {
                 let url = stagingDir.appendingPathComponent("preload-\(i).png")
-                if writeSyntheticPNG(width: 256, height: 256, to: url) {
+                if writeSyntheticPNG(width: side, height: side, to: url) {
                     seeded.append(url)
                 }
             }
@@ -339,10 +343,11 @@ Identifiers chosen to be self-documenting and unlikely to clash with system-prov
 In `Views/DropZoneView.swift`, on the outer `ZStack` (or the same view chain that already carries `.frame(height: 180)`), append:
 
 ```swift
+.accessibilityElement(children: .contain)
 .accessibilityIdentifier("dropZone")
 ```
 
-Place it just after `.contentShape(...)`. Pattern: stable `accessibilityIdentifier` should attach to the view that already has the tap handler so XCUITest's `.tap()` lands on the same hit target the user sees.
+Place it just after `.contentShape(...)`. The `.accessibilityElement(children: .contain)` modifier forces SwiftUI to expose the container as a queryable AX element on macOS — without it, root-level `ZStack` / `VStack` containers can be flattened out of the AX tree, causing XCUITest queries to miss them. Pattern: stable `accessibilityIdentifier` should attach to the view that already has the tap handler so XCUITest's `.tap()` lands on the same hit target the user sees.
 
 - [ ] **Step 2: `ContentView` — `startButton` and `fileList`**
 
@@ -374,7 +379,7 @@ On the output-folder `Text(settings.outputDirectory?.path ?? "Not selected")` in
 
 In `Views/ProgressOverlayView.swift`:
 
-On the outer `ZStack`, append `.accessibilityIdentifier("progressOverlay")` after `.transition(...)`.
+On the outer `ZStack`, append `.accessibilityElement(children: .contain)` then `.accessibilityIdentifier("progressOverlay")` after `.transition(...)`.
 
 On the `Button(role: .destructive, action: onCancel) { ... }`, append `.accessibilityIdentifier("cancelButton")` after `.pointingHandCursor()`.
 
@@ -382,7 +387,7 @@ On the `Button(role: .destructive, action: onCancel) { ... }`, append `.accessib
 
 In `Views/CompletionSheetView.swift`:
 
-On the outer `VStack(spacing: 18)`, append `.accessibilityIdentifier("completionSheet")` after `.onAppear { ... }`.
+On the outer `VStack(spacing: 18)`, append `.accessibilityElement(children: .contain)` then `.accessibilityIdentifier("completionSheet")` after `.onAppear { ... }`.
 
 On `Button("Done", action: onDismiss)`, append `.accessibilityIdentifier("dismissButton")` after `.pointingHandCursor()`.
 
@@ -418,120 +423,19 @@ EOF
 
 ---
 
-### Task 4: Slow-conversion `Converter` for cancel-flow observability
-
-**Why:** A real conversion of a 64x64 synthetic PNG → JPEG completes in ~1ms per file. XCUITest's `.tap()` on the cancel button can't fire fast enough to actually intercept; the completion sheet appears before the cancel can be observed. To make cancel externally observable we need conversions that take ≥ ~500ms each, with enough files queued that ProgressOverlayView is shown for ≥ 2 seconds.
-
-The cleanest path: extend the existing `Converter` protocol injection that Phase 3 added. `UITestSupport` swaps in a `SlowConverter` wrapper that sleeps `N` ms before delegating to a real `ImageConverter`. This is opt-in via env var and uses the same launch-arg parser.
-
-**Files:**
-- Modify: `App/UITestSupport.swift` (add `SlowConverter`)
-- Modify: `App/ImageCRCApp.swift` (compose VM with conditional Converter)
-
-- [ ] **Step 1: Add `SlowConverter` to `App/UITestSupport.swift`**
-
-Append to the file:
-
-```swift
-/// Wraps a real Converter and delays each file by a fixed duration. Used by
-/// XCUITest cancel-flow tests where the actual conversion is too fast for
-/// the cancel button tap to observably intercept. Off-thread sleeps inside
-/// the same actor isolation as the wrapped converter — the wrapped stream
-/// still drives `ConversionEvent` flow.
-struct SlowConverter: Converter {
-    let inner: any Converter
-    let perFileDelayMs: Int
-
-    func convert(files: [ImageFile], settings: ConversionSettings) -> AsyncStream<ConversionEvent> {
-        AsyncStream { continuation in
-            let job = Task {
-                let stream = inner.convert(files: files, settings: settings)
-                for await event in stream {
-                    if case .willStart = event {
-                        try? await Task.sleep(nanoseconds: UInt64(perFileDelayMs) * 1_000_000)
-                    }
-                    if Task.isCancelled { break }
-                    continuation.yield(event)
-                }
-                continuation.finish()
-            }
-            continuation.onTermination = { @Sendable _ in
-                job.cancel()
-            }
-        }
-    }
-}
-
-extension UITestSupport {
-    /// Returns a Converter — wrapped in SlowConverter when the launch arg is set.
-    /// Always returns the production `ImageConverter` when the hook is dormant.
-    static func converter() -> any Converter {
-        guard isActive else { return ImageConverter() }
-        let args = ProcessInfo.processInfo.arguments
-        if let str = value(for: "--ui-test-slow-conversion", in: args),
-           let ms = Int(str), ms > 0 {
-            return SlowConverter(inner: ImageConverter(), perFileDelayMs: ms)
-        }
-        return ImageConverter()
-    }
-}
-```
-
-The cancel-flow test will pass `--ui-test-slow-conversion 500` and queue 6 files: total wall-clock ~3 seconds, plenty of time for the cancel tap to land before the `.didFinish` event.
-
-- [ ] **Step 2: Wire `UITestSupport.converter()` into `ImageCRCApp`**
-
-Change the `@State` line in `App/ImageCRCApp.swift`:
-
-```swift
-@State private var viewModel = ConversionViewModel(converter: UITestSupport.converter())
-```
-
-This replaces the default `ImageConverter()` injection. When the hook is dormant, `UITestSupport.converter()` returns plain `ImageConverter()` — identical to current behaviour.
-
-- [ ] **Step 3: Verify build + tests**
-
-```bash
-swift build 2>&1 | tail -5
-swift test 2>&1 | tail -3
-```
-
-Expected: 92/32 + 1 known issue still pass.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add App/UITestSupport.swift App/ImageCRCApp.swift
-git commit -m "$(cat <<'EOF'
-feat(app): SlowConverter for XCUITest cancel-flow observability
-
-Synthetic 64x64 → JPEG conversions complete in ~1ms each, too fast for
-XCUITest to observably intercept with a cancel button tap. SlowConverter
-wraps the real ImageConverter and sleeps a configurable per-file delay
-before forwarding each .willStart, so the cancel tap reliably lands
-mid-batch.
-
-Composed into the VM only when IMAGECRC_UI_TEST=1 + the
---ui-test-slow-conversion <ms> launch arg are present. Production
-launches still get plain ImageConverter via the same factory entry point.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-EOF
-)"
-```
-
----
-
 # Section B — XCUITest target + smoke
 
 ---
 
-### Task 5: Add `bundle.ui-testing` target to `project.yml`
+### Task 4: Add `bundle.ui-testing` target to `project.yml`
 
 **Why:** XCUITest needs its own Xcode target with `type: bundle.ui-testing`, separate from the unit-test target. The UI test target requires `TEST_TARGET_NAME` (the app it drives) and **must not** carry `BUNDLE_LOADER` / `TEST_HOST` (those are unit-test patterns). The scheme also needs the UI tests added under `test.targets`.
 
+This task lands the project.yml change AND a bootstrap test file together, in one commit, because xcodegen + xcodebuild require the target to have at least one compilable source. The bootstrap test is replaced by the real UI tests in T5 (separate commit, separate concern).
+
 **Files:**
 - Modify: `project.yml`
+- Create: `Tests/UITests/_Phase5Bootstrap.swift`
 
 - [ ] **Step 1: Add the target**
 
@@ -573,17 +477,11 @@ Also update `schemes.ImageCRC.build.targets`:
         ImageCRCUITests: [test]
 ```
 
-- [ ] **Step 2: Create the directory with a placeholder so xcodegen succeeds**
-
-XcodeGen errors on a sources path that doesn't exist. We create the dir and a stub file (the real test lands in T6).
+- [ ] **Step 2: Create `Tests/UITests/` directory**
 
 ```bash
 mkdir -p Tests/UITests
 ```
-
-Create `Tests/UITests/.gitkeep` (empty). The actual test file lands in T6 — don't write a stub `.swift` here because xcodegen would try to compile it.
-
-Actually — if the directory is empty, xcodegen with `generateEmptyDirectories: true` will accept it. But there's a subtlety: xcodebuild may refuse to link a UI test target with no sources. To unblock T5 → T6 sequencing without an empty target, we land T5 + T6 as a compound deliverable (one test file written before xcodegen runs). To preserve commit granularity, the T5 commit lands the project.yml change AND a placeholder XCUITest file containing only a one-line `import XCTest` plus an empty `final class _Phase5Bootstrap: XCTestCase {}`. T6 replaces this stub with real tests.
 
 - [ ] **Step 3: Write the bootstrap stub**
 
@@ -593,7 +491,7 @@ import XCTest
 
 /// Placeholder so the ImageCRCUITests target has at least one source file,
 /// allowing xcodegen + xcodebuild to set up the bundle.ui-testing target.
-/// Real UI tests land in T6 and supersede this empty class.
+/// Real UI tests land in T5 and supersede this empty class.
 final class _Phase5Bootstrap: XCTestCase {
     func testTargetCompiles() {
         XCTAssertTrue(true)
@@ -601,7 +499,7 @@ final class _Phase5Bootstrap: XCTestCase {
 }
 ```
 
-This bootstrap test runs and passes immediately, proving the target builds and test discovery works. T6 deletes it.
+This bootstrap test runs and passes immediately, proving the target builds and test discovery works. T5 deletes it.
 
 - [ ] **Step 4: Regenerate and run xcodebuild**
 
@@ -644,7 +542,7 @@ EOF
 
 ---
 
-### Task 6: Happy-path XCUITest
+### Task 5: Happy-path XCUITest
 
 **Why:** Cover the core user journey end-to-end through real SwiftUI: launch app → files preloaded → start button enabled → tap start → progress overlay shows → completion sheet appears → tap dismiss → app returns to idle.
 
@@ -806,9 +704,9 @@ EOF
 
 ---
 
-### Task 7: Cancel-flow XCUITest
+### Task 6: Cancel-flow XCUITest
 
-**Why:** Cover the cancel button working mid-batch. With `--ui-test-slow-conversion 500` and 6 preloaded files, total runtime ≈ 3 seconds — plenty of time for the cancel tap to land before completion. Assertion: completion sheet still appears (terminal state), summary's `wasCancelled == true` is reflected by the visible "Cancelled" title and a non-zero `cancelled` count.
+**Why:** Cover the cancel button working mid-batch. With 8 preloaded **4096×4096** PNG files, decoding + JPEG-encoding each one takes hundreds of milliseconds — total runtime several seconds, plenty of margin for the cancel tap to land mid-batch. `Task.isCancelled` checks already in `ImageConverter.processOne` short-circuit work-in-progress.
 
 Since XCUITest can't read `summary.wasCancelled` directly, we assert via accessibility-tree state: completion sheet exists AND the dismiss button still works AND fewer files than total exist in the output dir.
 
@@ -831,10 +729,13 @@ final class ImageCRCCancelFlowTests: XCTestCase {
 
         app = XCUIApplication()
         app.launchEnvironment["IMAGECRC_UI_TEST"] = "1"
+        // 8 files at 4096x4096 take real wall-clock time to decode/encode —
+        // cancel tap reliably lands before the batch finishes. Task.isCancelled
+        // checks in ImageConverter.processOne short-circuit work in progress.
         app.launchArguments = [
             "--ui-test-output-dir", outputDir.path,
-            "--ui-test-preload-files", "6",
-            "--ui-test-slow-conversion", "500",
+            "--ui-test-preload-files", "8",
+            "--ui-test-preload-size", "4096",
         ]
     }
 
@@ -849,24 +750,22 @@ final class ImageCRCCancelFlowTests: XCTestCase {
         app.launch()
 
         let startButton = app.descendants(matching: .any)["startButton"]
-        XCTAssertTrue(startButton.waitForExistence(timeout: 10))
+        XCTAssertTrue(startButton.waitForExistence(timeout: 30),
+                      "startButton must exist (preload of 8x 4096px PNGs may be slow on first launch)")
         let enabled = expectation(for: NSPredicate(format: "isEnabled == true"),
                                   evaluatedWith: startButton)
-        wait(for: [enabled], timeout: 10)
+        wait(for: [enabled], timeout: 30)
         startButton.tap()
 
-        // Progress overlay must appear (slow conversion holds it on screen).
+        // Progress overlay's cancel button must appear before the batch finishes.
         let cancelButton = app.descendants(matching: .any)["cancelButton"]
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 10),
                       "cancelButton must appear once a slow batch is running")
-
-        // Tap cancel mid-batch (overlay has been shown for >0ms; first file's
-        // 500ms sleep guarantees we're in willStart-pending, not idle).
         cancelButton.tap()
 
         // Completion sheet still appears terminally.
         let completionSheet = app.descendants(matching: .any)["completionSheet"]
-        XCTAssertTrue(completionSheet.waitForExistence(timeout: 30),
+        XCTAssertTrue(completionSheet.waitForExistence(timeout: 60),
                       "completionSheet must still appear after cancel tap")
 
         // Dismiss reverts to idle.
@@ -874,17 +773,17 @@ final class ImageCRCCancelFlowTests: XCTestCase {
         XCTAssertTrue(dismiss.waitForExistence(timeout: 10))
         dismiss.tap()
 
-        // Side-effect: output dir should have FEWER than 6 successful jpg files.
+        // Side-effect: output dir should have FEWER than 8 successful jpg files.
         let outputDir = tempDirURL.appendingPathComponent("out")
         let outputs = (try? FileManager.default.contentsOfDirectory(at: outputDir, includingPropertiesForKeys: nil)) ?? []
         let jpgCount = outputs.filter { $0.pathExtension.lowercased() == "jpg" }.count
-        XCTAssertLessThan(jpgCount, 6,
-                          "cancel must short-circuit some files; output dir had \(jpgCount) of 6")
+        XCTAssertLessThan(jpgCount, 8,
+                          "cancel must short-circuit some files; output dir had \(jpgCount) of 8")
     }
 }
 ```
 
-The `XCTAssertLessThan(jpgCount, 6)` assertion is the externally observable proof that cancel actually short-circuited the batch. If `jpgCount == 6` the cancel tap arrived too late and the test would fail honestly (signalling we need to either bump the slow-conversion delay or queue more files).
+The `XCTAssertLessThan(jpgCount, 8)` assertion is the externally observable proof that cancel actually short-circuited the batch. If `jpgCount == 8` the cancel tap arrived too late and the test would fail honestly (signalling we need to either bump the preload count to 16 or the size to 8192).
 
 - [ ] **Step 2: Run the cancel-flow test**
 
@@ -892,7 +791,7 @@ The `XCTAssertLessThan(jpgCount, 6)` assertion is the externally observable proo
 xcodebuild test -scheme ImageCRC -destination 'platform=macOS,arch=arm64' -only-testing:ImageCRCUITests/ImageCRCCancelFlowTests 2>&1 | tail -15
 ```
 
-Expected: 1 UI test passes. If `jpgCount == 6` (cancel landed too late), bump `--ui-test-slow-conversion` from 500 to 1000ms or queue more files. Don't relax the assertion — that would defeat the test.
+Expected: 1 UI test passes. If `jpgCount == 8` (cancel landed too late), bump preload count to 12 or size to 8192. Don't relax the assertion — that would defeat the test.
 
 - [ ] **Step 3: Run full xcodebuild test**
 
@@ -915,19 +814,21 @@ Expected: 92 / 32 / 1 known issue.
 ```bash
 git add Tests/UITests/ImageCRCUITests.swift
 git commit -m "$(cat <<'EOF'
-test(ui): cancel-flow XCUITest with slow-conversion observability
+test(ui): cancel-flow XCUITest with large-image observability
 
-Launches the app with --ui-test-slow-conversion 500 and 6 preloaded
-files (≈3s total wall-clock). Test taps startButton → waits for
-cancelButton in the progress overlay → taps cancel → asserts the
-completion sheet appears terminally → dismisses → verifies fewer than 6
-output JPGs landed on disk. The on-disk count is the externally
-observable proof that cancel actually short-circuited the batch.
+Launches the app with 8 preloaded 4096x4096 PNGs — decoding plus
+JPEG-encoding takes real wall-clock seconds, plenty of margin for the
+cancel tap to land mid-batch. Task.isCancelled checks already in
+ImageConverter.processOne short-circuit work in progress.
 
-The 500ms per-file delay is wide enough that the cancel tap reliably
-lands before the .didFinish event on macos-14 hardware. If a future
-runner is too slow and jpgCount == 6, bump the delay rather than
-relaxing the assertion.
+Test taps startButton → waits for cancelButton in the progress overlay
+→ taps cancel → asserts the completion sheet appears terminally →
+dismisses → verifies fewer than 8 output JPGs landed on disk. The
+on-disk count is the externally observable proof that cancel actually
+short-circuited the batch.
+
+If a future runner is fast enough that jpgCount == 8, bump the file
+count or size — never relax the assertion.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
@@ -940,7 +841,7 @@ EOF
 
 ---
 
-### Task 8: Document `xcodebuild test` and finalize
+### Task 7: Document `xcodebuild test` and finalize
 
 **Why:** `CLAUDE.md` lists build commands but not the test invocation needed for Phase 5+. Phase 6 will reference this directly. Update the build/run section so future contributors and CI both know the exact incantation.
 
@@ -964,7 +865,7 @@ xcodebuild test -scheme ImageCRC -destination 'platform=macOS,arch=arm64' -quiet
 
 Expected:
 - `swift test`: 92 tests / 32 suites / 1 known issue.
-- `xcodebuild test`: same SwiftPM-side coverage **plus** 2 UI tests, all green. Final cumulative: 94 tests / 33 suites (XCUITest counts in xcodebuild's tally) + 1 known issue.
+- `xcodebuild test`: same SwiftPM-side coverage **plus** 2 UI tests across 2 XCUITest classes, all green.
 
 - [ ] **Step 3: Verify branch + tree**
 
@@ -997,7 +898,7 @@ EOF
 - [ ] `swift test` unchanged at 92 / 32 / 1 known issue
 - [ ] `bundle.ui-testing` target wired in `project.yml` and present in scheme
 - [ ] Production accessibility identifiers landed on dropZone, startButton, fileList, qualitySlider, formatPicker, outputFolderButton, outputFolderPath, cancelButton, progressOverlay, completionSheet, dismissButton
-- [ ] App-side `UITestSupport.applyLaunchArguments` and `UITestSupport.converter()` dormant unless `IMAGECRC_UI_TEST=1`
+- [ ] App-side `UITestSupport.applyLaunchArguments` dormant unless `IMAGECRC_UI_TEST=1`
 - [ ] CLAUDE.md documents `xcodebuild test` invocation
 - [ ] User approval to write Phase 6 plan
 
@@ -1007,7 +908,7 @@ EOF
 
 1. **PRODUCT_MODULE_NAME fix scope (T1).** The xcodebuild "Multiple commands produce..." error is pre-existing — it's not introduced by Phase 5. Fixing it as a Phase 5 prerequisite is correct because (a) Phase 5 needs `xcodebuild test` to run and (b) Phase 6 needs it for CI. Leaving it for Phase 6 would block all of Phase 5. Documented in the T1 commit message.
 
-2. **Slow-conversion timing reliability (T7).** 500ms per file × 6 files ≈ 3s gives generous margin on macos-14 hardware (Apple Silicon CI runners are fast — XCUITest tap latency is ~100ms, willStart-to-tap window is at least 400ms even for the first file). If we ever see flake in CI, bump to 800ms before relaxing the on-disk count assertion.
+2. **Cancel-flow timing reliability (T6).** The cancel-flow test uses 8 × 4096×4096 PNGs as input. Decoding + JPEG-encoding 67MB of raw RGBA per file takes hundreds of milliseconds on Apple Silicon — total batch wall-clock is several seconds. With concurrency bounded by `activeProcessorCount`, the cancel button has a wide observation window. If we ever see flake (jpgCount == 8 because cancel landed too late), bump preload count to 12 or size to 8192. The 67MB-per-file size also tests the production memory path in a way the existing 256-pixel synthetic suite doesn't.
 
 3. **Drop zone has no XCUITest coverage.** Click-to-browse path is also untested via real `NSOpenPanel` — only via the launch-arg seed. The drop zone's drag-and-drop target is genuinely difficult to drive from XCUITest reliably, and `NSOpenPanel` automation requires entitlement-laden tricks that don't survive sandboxed CI. Both deferred deliberately. The unit tests in Phase 3 (`ConversionViewModel — canStart, cancel, dismiss` and `chooseOutputDirectory routes through FakeFileChooser`) cover the VM-side of these paths.
 
@@ -1034,27 +935,48 @@ EOF
 ## Pause points
 
 - **After T1:** xcodebuild plumbing fixed; can run existing 92 tests via xcodebuild. Independent improvement, useful even if the rest of Phase 5 is paused.
-- **After T2–T4:** all app-side affordances landed; ready for the actual UI tests.
-- **After T5–T7:** XCUITest target + happy-path + cancel-flow all green.
-- **After T8:** Phase 5 done; ready for Phase 6 (CI wiring on `macos-14` GH runner).
+- **After T2–T3:** all app-side affordances landed; ready for the actual UI tests.
+- **After T4–T6:** XCUITest target + happy-path + cancel-flow all green.
+- **After T7:** Phase 5 done; ready for Phase 6 (CI wiring on `macos-14` GH runner).
 
 ---
 
 ## Self-review
 
 **Spec coverage:** Phase 5 commitments from `2026-05-05-testing-strategy.md` covered:
-- `bundle.ui-testing` target in `project.yml` → T5
+- `bundle.ui-testing` target in `project.yml` → T4
 - accessibility identifiers on key views → T3 (full list of 11 covers strategy doc's 9 named ones)
-- happy path drop → start → completion → dismiss → T6
-- cancel flow → T7
+- happy path drop → start → completion → dismiss → T5
+- cancel flow → T6
 - Open question from strategy doc ("env-flag + injected fixture vs `NSOpenPanel` automation") → resolved in favour of env-flag + injected fixture, documented in Constraints
 
-**Placeholder scan:** every code block runnable. T1 fix is concrete (move one line, set per-target). T2's `UITestSupport` is full implementation. T6 / T7 tests are full bodies, not skeletons.
+**Placeholder scan:** every code block runnable. T1 fix is concrete (move one line, set per-target). T2's `UITestSupport` is full implementation. T5 / T6 tests are full bodies, not skeletons.
 
-**Type consistency:** `Converter` protocol from `Services/Converter.swift` is `Sendable` and returns `AsyncStream<ConversionEvent>` — `SlowConverter` (T4) matches both. `ConversionViewModel.init(converter:fileChooser:)` accepts `any Converter` — verified in `ViewModels/ConversionViewModel.swift`. `FileChooser` protocol from `ViewModels/FileChooser.swift` is `@MainActor`-isolated — UI-test launch hook doesn't touch this protocol since it preloads files via `vm.addURLs(_:)` directly.
+**Type consistency:** `Converter` protocol from `Services/Converter.swift` is `Sendable` and returns `AsyncStream<ConversionEvent>` — production `ImageConverter` is used unchanged; no wrapper types are introduced. `ConversionViewModel.init(converter:fileChooser:)` accepts `any Converter` — verified in `ViewModels/ConversionViewModel.swift`, and the default `ImageConverter()` injection is preserved. `FileChooser` protocol from `ViewModels/FileChooser.swift` is `@MainActor`-isolated — the UI-test launch hook doesn't touch this protocol since it preloads files via `vm.addURLs(_:)` directly.
 
-**Cross-task consistency:** T2 introduces `IMAGECRC_UI_TEST=1` as the master gate; T3 wires it into `ImageCRCApp.onAppear`; T4 extends `UITestSupport` with `converter()` factory; T6/T7 set the env in their `setUp`. Single-source-of-truth env name throughout.
+**Cross-task consistency:** T2 introduces `IMAGECRC_UI_TEST=1` as the master gate, the launch-arg parser, and the synthetic PNG generator. T5/T6 set the env in their `setUp`. Single-source-of-truth env name throughout. No `Converter` wrapper to maintain — slowness comes from large input files passed through the existing production pipeline.
 
-**External observability:** every assertion is on something the AX tree exposes (identifier existence, button enablement, sheet presence) or on filesystem state (output JPG count). No assertions on internal model state from UI tests. Cancellation flow specifically asserts `jpgCount < 6` because that's the externally-observable evidence of cancel having short-circuited the batch.
+**External observability:** every assertion is on something the AX tree exposes (identifier existence, button enablement, sheet presence) or on filesystem state (output JPG count). No assertions on internal model state from UI tests. Cancellation flow specifically asserts `jpgCount < 8` because that's the externally-observable evidence of cancel having short-circuited the batch.
 
-**Phase 6 dependencies covered:** T1 fixes the xcodebuild blocker. T8 documents the canonical invocation. Phase 6 can write `.github/workflows/test.yml` referencing both `swift test` and `xcodebuild test ...` from this plan.
+**Phase 6 dependencies covered:** T1 fixes the xcodebuild blocker. T7 documents the canonical invocation. Phase 6 can write `.github/workflows/test.yml` referencing both `swift test` and `xcodebuild test ...` from this plan.
+
+---
+
+## QA review fixes applied (2026-05-08)
+
+Self-review caught several issues in the original draft — applied as a separate commit before execution.
+
+**C1 (critical) — SlowConverter event-delay strategy didn't actually slow the conversion.**
+Original T4 wrapped `ImageConverter` and slept inside the `for await` loop that forwarded `ConversionEvent`s. ImageConverter's TaskGroup runs all files in parallel inside the inner stream — by the time SlowConverter's loop starts forwarding events with delays, all output files have already been written. Cancellation via the outer stream would short-circuit event forwarding but not on-disk writes; `jpgCount == 8` would always be the result. **Fix:** drop SlowConverter entirely; use 4096×4096 PNG inputs that are naturally slow to decode/encode. `Task.isCancelled` checks already inside `ImageConverter.processOne` short-circuit work in progress when the cancel button fires. Renumbered T4–T8 → T4–T7.
+
+**C2 (critical) — Root-level `.accessibilityIdentifier` on `ZStack` / `VStack` may be flattened out of the macOS AX tree.**
+SwiftUI optimises away container views that don't have AX-significant content, so `ZStack { … }.accessibilityIdentifier("dropZone")` can leave the AX tree without a queryable element matching that identifier. **Fix:** prepend `.accessibilityElement(children: .contain)` on `dropZone`, `progressOverlay`, `completionSheet` to force a queryable container element.
+
+**I1 (important) — `--ui-test-preload-size` arg added** so the cancel-flow test can request 4096-pixel inputs without polluting the happy-path defaults.
+
+**I2 (important) — Removed `.gitkeep` placeholder approach.**
+Original T5 had ambiguous handling: `.gitkeep` vs. bootstrap `.swift` stub. Settled on bootstrap `.swift` (xcodegen + xcodebuild require at least one source for a UI test target).
+
+**I3 (important) — Renumbered all task references in commit messages, "done when" checklist, pause points, and self-review** to reflect the renumbered T1–T7.
+
+Minor noise (M1–M3 from review) skipped — phrasing nitpicks, not load-bearing.
