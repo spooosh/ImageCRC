@@ -64,3 +64,12 @@ jobs:
             -scheme ImageCRC \
             -destination 'platform=macOS,arch=arm64' \
             -resultBundlePath build/TestResults.xcresult
+
+      - name: Upload xcresult on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/TestResults.xcresult
+          retention-days: 14
+          if-no-files-found: ignore
