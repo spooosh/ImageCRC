@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `swift build` / `swift build -c release` — compile only; no `.app` wrapper, and `pngquant` isn't bundled so PNG lossy encoding will fall back to system paths (`/opt/homebrew/bin/pngquant`, `/usr/local/bin/pngquant`). `brew install pngquant` is required for PNG `q<100`.
 - `open ./ImageCRC.app` — launch the built app.
 - `xcodegen generate` — regenerate `ImageCRC.xcodeproj` from `project.yml` (only needed if working in Xcode).
-- `swift test` — Swift Testing framework. `Tests/Fixtures/` is wired into the Package layout; tests themselves are not landed yet.
+- `swift test` — Swift Testing framework. Covers `Tests/Support`, `Tests/UnitTests`, `Tests/CodecTests`, `Tests/IntegrationTests`. `Tests/Fixtures/` is wired into the Package layout for fixtures; `Tests/UITests/` is excluded — XCUITest can't run via SwiftPM.
+- `xcodebuild test -scheme ImageCRC -destination 'platform=macOS,arch=arm64'` — runs the same SwiftPM-side suite **plus** the XCUITest UI smoke target. SwiftPM (`swift test`) covers everything except UI tests; XCUITest requires Xcode-only host-process injection, so the full test suite needs both invocations. First run on a fresh machine triggers a macOS automation/accessibility permission prompt for the test runner — grant it via System Settings → Privacy & Security if the runner reports `Timed out while enabling automation mode`.
 
 Deployment target is macOS 14 (AVIF encode requires it). Swift 5.10.
 
