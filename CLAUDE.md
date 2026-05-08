@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `xcodegen generate` — regenerate `ImageCRC.xcodeproj` from `project.yml` (only needed if working in Xcode).
 - `swift test` — Swift Testing framework. Covers `Tests/Support`, `Tests/UnitTests`, `Tests/CodecTests`, `Tests/IntegrationTests`. `Tests/Fixtures/` is wired into the Package layout for fixtures; `Tests/UITests/` is excluded — XCUITest can't run via SwiftPM.
 - `xcodebuild test -scheme ImageCRC -destination 'platform=macOS,arch=arm64'` — runs the same SwiftPM-side suite **plus** the XCUITest UI smoke target. SwiftPM (`swift test`) covers everything except UI tests; XCUITest requires Xcode-only host-process injection, so the full test suite needs both invocations. First run on a fresh machine triggers a macOS automation/accessibility permission prompt for the test runner — grant it via System Settings → Privacy & Security if the runner reports `Timed out while enabling automation mode`.
+- CI runs both `swift test` and `xcodebuild test` on every push to `main` / `tests/**` and on every pull request via `.github/workflows/test.yml` (macos-14 runner, arm64). Keep both invocations green locally before pushing — CI parity matters.
 
 Deployment target is macOS 14 (AVIF encode requires it). Swift 5.10.
 

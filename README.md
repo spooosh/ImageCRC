@@ -6,6 +6,9 @@
   <p><strong>Bulk image optimization and format conversion for macOS.</strong></p>
 
   <p>
+    <a href="https://github.com/spooosh/ImageCRC/actions/workflows/test.yml">
+      <img alt="CI" src="https://github.com/spooosh/ImageCRC/actions/workflows/test.yml/badge.svg" />
+    </a>
     <img alt="macOS 14+" src="https://img.shields.io/badge/macOS-14%2B-1d1d1f?logo=apple&logoColor=white" />
     <img alt="Swift 5.10" src="https://img.shields.io/badge/Swift-5.10-F05138?logo=swift&logoColor=white" />
     <img alt="SwiftUI" src="https://img.shields.io/badge/UI-SwiftUI-7c3aed" />
