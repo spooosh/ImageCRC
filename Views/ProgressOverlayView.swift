@@ -36,6 +36,7 @@ struct ProgressOverlayView: View {
                 .controlSize(.large)
                 .keyboardShortcut(.cancelAction)
                 .pointingHandCursor()
+                .accessibilityIdentifier("cancelButton")
             }
             .padding(36)
             .background(.ultraThinMaterial,
@@ -44,6 +45,8 @@ struct ProgressOverlayView: View {
             .frame(maxWidth: 440)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("progressOverlay")
     }
 
     private var ringCenter: some View {
