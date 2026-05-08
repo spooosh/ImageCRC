@@ -32,6 +32,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select latest Xcode 16+ for Swift Testing framework
+        run: |
+          LATEST=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$LATEST" ]; then
+            echo "::error::No Xcode 16 found on runner; \`import Testing\` requires Xcode 16+"
+            ls /Applications/ | grep Xcode || true
+            exit 1
+          fi
+          sudo xcode-select -s "$LATEST"
+
       - name: Cache SwiftPM build artefacts
         uses: actions/cache@v4
         with:
