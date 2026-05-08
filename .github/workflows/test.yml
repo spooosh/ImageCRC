@@ -32,14 +32,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install pngquant
-        run: brew install pngquant
+      - name: Install pngquant and xcodegen
+        run: brew install pngquant xcodegen
 
       - name: Print toolchain versions
         run: |
           swift --version
           xcodebuild -version
           pngquant --version
+          xcodegen --version
 
       - name: swift test
         run: swift test
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: xcodebuild test
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project ImageCRC.xcodeproj \
+            -scheme ImageCRC \
+            -destination 'platform=macOS,arch=arm64' \
+            -resultBundlePath build/TestResults.xcresult
