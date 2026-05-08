@@ -62,6 +62,7 @@ struct WebPQualityMatrixTests {
 @Suite("Perceptual quality — HEIC matrix")
 struct HEICQualityMatrixTests {
     @Test("HEIC SSIM thresholds across quality matrix",
+          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_HEIC"] != "1"),
           arguments: [
             (q: 1.0,  minSSIM: 0.97),
             (q: 0.8,  minSSIM: 0.93),

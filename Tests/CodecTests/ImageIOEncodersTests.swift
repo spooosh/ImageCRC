@@ -36,7 +36,8 @@ struct ImageIOEncodersRoundTripTests {
         #expect(data.count > 0)
     }
 
-    @Test("HEIC round-trip preserves dimensions")
+    @Test("HEIC round-trip preserves dimensions",
+          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_HEIC"] != "1"))
     func heicRoundTrip() throws {
         let tmp = try TempDirectory()
         let src = SyntheticImage.gradient(width: 64, height: 32)

@@ -28,7 +28,8 @@ struct EncoderSizeBoundsTests {
         #expect(data.count < rawByteCount)
     }
 
-    @Test("HEIC q=80 output is smaller than raw, larger than zero")
+    @Test("HEIC q=80 output is smaller than raw, larger than zero",
+          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_HEIC"] != "1"))
     func heicBounds() throws {
         let src = SyntheticImage.gradient(width: 256, height: 256)
         let data = try HEICEncoder.encode(image: src, quality: 0.8)

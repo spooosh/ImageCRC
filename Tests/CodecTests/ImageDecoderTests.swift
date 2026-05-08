@@ -6,12 +6,18 @@ import Testing
 
 @Suite("ImageDecoder — dispatch by InputFormat")
 struct ImageDecoderDispatchTests {
-    /// AVIF encode is slow on virtualised CI runners (no hardware AV1).
-    /// Filter it out of the dispatch sweep when IMAGECRC_TEST_SKIP_AVIF=1.
+    /// AVIF and HEIC encode require hardware codecs (AV1 / HEVC) that
+    /// virtualised macOS CI runners lack — IOServiceGetMatchingService fails.
+    /// Filter them out of the dispatch sweep when the matching skip flag is
+    /// set; locally on Apple Silicon both run sub-second.
     private static let formatsToTest: [InputFormat] = {
-        let all: [InputFormat] = [.jpeg, .png, .heic, .avif, .webp]
-        if ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_AVIF"] == "1" {
-            return all.filter { $0 != .avif }
+        let env = ProcessInfo.processInfo.environment
+        var all: [InputFormat] = [.jpeg, .png, .heic, .avif, .webp]
+        if env["IMAGECRC_TEST_SKIP_AVIF"] == "1" {
+            all.removeAll { $0 == .avif }
+        }
+        if env["IMAGECRC_TEST_SKIP_HEIC"] == "1" {
+            all.removeAll { $0 == .heic }
         }
         return all
     }()
