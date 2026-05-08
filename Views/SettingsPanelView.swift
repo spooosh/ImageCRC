@@ -52,6 +52,7 @@ struct SettingsPanelView: View {
                 in: 0...100
             )
             .tint(Color.accentColor)
+            .accessibilityIdentifier("qualitySlider")
             if settings.outputFormat == .png && settings.quality < 100 {
                 Text("PNG < 100 quantizes via pngquant (indexed-color, up to 256 colors).")
                     .font(.caption)
@@ -115,6 +116,7 @@ struct SettingsPanelView: View {
                     options: OutputFormat.allCases,
                     title: { $0.displayName }
                 )
+                .accessibilityIdentifier("formatPicker")
                 if settings.outputFormat == .sameAsOrigin {
                     Text("SVG files are copied as-is — resize and quality don't apply.")
                         .font(.caption)
@@ -137,9 +139,11 @@ struct SettingsPanelView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color.secondary.opacity(0.08),
                                     in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .accessibilityIdentifier("outputFolderPath")
                     Button("Choose…", action: onChooseFolder)
                         .buttonStyle(.bordered)
                         .pointingHandCursor()
+                        .accessibilityIdentifier("outputFolderButton")
                 }
             }
         }

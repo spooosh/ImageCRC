@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import AppKit
 
 @MainActor
 @Observable
@@ -26,6 +25,20 @@ final class ConversionViewModel {
     private(set) var summary: ConversionSummary? = nil
 
     private var job: Task<Void, Never>?
+
+    @ObservationIgnored
+    private let converter: any Converter
+
+    @ObservationIgnored
+    private let fileChooser: any FileChooser
+
+    init(
+        converter: any Converter = ImageConverter(),
+        fileChooser: any FileChooser = AppKitFileChooser()
+    ) {
+        self.converter = converter
+        self.fileChooser = fileChooser
+    }
 
     // MARK: - File management
 
@@ -73,33 +86,15 @@ final class ConversionViewModel {
     // MARK: - Settings
 
     func chooseOutputDirectory() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.canCreateDirectories = true
-        panel.prompt = "Select"
-        panel.message = "Choose output folder"
-        if let current = settings.outputDirectory {
-            panel.directoryURL = current
-        }
-        let response = panel.runModal()
-        if response == .OK, let url = panel.url {
+        if let url = fileChooser.chooseDirectory(initial: settings.outputDirectory) {
             settings.outputDirectory = url
         }
     }
 
     func browseForFiles() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = true
-        panel.allowedContentTypes = InputFormat.allowedUTTypes
-        panel.prompt = "Add"
-        panel.message = "Add images or a folder"
-        let response = panel.runModal()
-        if response == .OK {
-            addURLs(panel.urls)
+        let urls = fileChooser.chooseFiles(allowedTypes: InputFormat.allowedUTTypes)
+        if !urls.isEmpty {
+            addURLs(urls)
         }
     }
 
@@ -123,8 +118,9 @@ final class ConversionViewModel {
         let snapshot = files
         let settingsSnapshot = settings
 
+        let converter = self.converter
         job = Task { [weak self] in
-            let stream = ImageConverter.convert(files: snapshot, settings: settingsSnapshot)
+            let stream = converter.convert(files: snapshot, settings: settingsSnapshot)
             for await event in stream {
                 guard let self else { return }
                 self.apply(event)

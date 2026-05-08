@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct ContentView: View {
     @Bindable var viewModel: ConversionViewModel
     @Binding var appearance: AppAppearance
@@ -67,6 +68,7 @@ struct ContentView: View {
                     onRemove: { viewModel.remove($0) },
                     onClear: { viewModel.clearFiles() }
                 )
+                .accessibilityIdentifier("fileList")
             } else {
                 Spacer(minLength: 0)
             }
@@ -121,6 +123,7 @@ struct ContentView: View {
         .controlSize(.large)
         .disabled(!viewModel.canStart)
         .pointingHandCursor()
+        .accessibilityIdentifier("startButton")
     }
 
     private var startButtonLabel: String {

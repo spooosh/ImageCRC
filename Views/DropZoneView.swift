@@ -43,6 +43,8 @@ struct DropZoneView: View {
         }
         .frame(height: 180)
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("dropZone")
         .onTapGesture { onBrowse() }
         .onHover { isHovering = $0 }
         .pointingHandCursor()

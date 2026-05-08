@@ -68,6 +68,7 @@ struct CompletionSheetView: View {
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .pointingHandCursor()
+                    .accessibilityIdentifier("dismissButton")
             }
             .padding(.top, 4)
         }
@@ -80,6 +81,8 @@ struct CompletionSheetView: View {
                 NSWorkspace.shared.open(summary.outputDirectory)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("completionSheet")
     }
 
     private var icon: String {

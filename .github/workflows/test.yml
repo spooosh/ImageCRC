@@ -1,0 +1,103 @@
+name: Test
+
+on:
+  push:
+    # Only main — feature branches like `tests/**` are covered by the
+    # pull_request trigger below, so listing them here would double-fire
+    # CI for every PR push (concurrency.cancel-in-progress can't dedupe
+    # across the two trigger types because their github.ref differs).
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Opt JavaScript-based actions (checkout/cache/upload-artifact) into Node 24
+# ahead of GitHub's forced migration on 2026-06-02. Validates compatibility
+# early; if anything breaks, fall back via ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  test:
+    name: swift test (macos-14)
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode 16+ for Swift Testing framework
+        run: |
+          LATEST=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$LATEST" ]; then
+            echo "::error::No Xcode 16 found on runner; \`import Testing\` requires Xcode 16+"
+            ls /Applications/ | grep Xcode || true
+            exit 1
+          fi
+          sudo xcode-select -s "$LATEST"
+
+      - name: Cache SwiftPM build artefacts
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-spm-${{ hashFiles('Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-spm-
+
+      - name: Install pngquant and xcodegen
+        run: brew install pngquant xcodegen
+
+      - name: Print toolchain versions
+        run: |
+          swift --version
+          xcodebuild -version
+          pngquant --version
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      # Drive both SwiftPM-side tests (ImageCRCTests target) and the
+      # XCUITest UI smoke (ImageCRCUITests) via xcodebuild rather than
+      # `swift test`. SwiftPM's `swiftpm-testing` runner hangs silently
+      # post-build on the macos-14 GH runner — never starts streaming
+      # test events, never exits — even with AVIF gated off. Xcode's
+      # test runner manages NSApplication lifecycle and avoids whatever
+      # the hang is. This also drops a redundant double-run since
+      # xcodebuild already exercises the same SwiftPM test target.
+      - name: xcodebuild test
+        run: |
+          set -o pipefail
+          # Tests gate themselves on actual host capability via Tests/Support/
+          # CodecCapability.swift — AVIF/HEIC encode are probed at startup
+          # (skipped if the AppleAVEVA hardware codec isn't reachable) and
+          # pngquant tests check for a binary on standard PATH locations
+          # (we brew-install above). No env-var plumbing needed; xcodebuild's
+          # host-app test runner doesn't reliably propagate process env.
+          xcodebuild test \
+            -project ImageCRC.xcodeproj \
+            -scheme ImageCRC \
+            -destination 'platform=macOS,arch=arm64' \
+            -resultBundlePath build/TestResults.xcresult
+
+      - name: Upload xcresult on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/TestResults.xcresult
+          retention-days: 14
+          if-no-files-found: ignore

@@ -8,8 +8,6 @@
 	<string>ImageCRC</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.spooosh.image-crc</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -30,6 +28,8 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 spooosh</string>
+	<key>NSQuitAlwaysKeepsWindows</key>
+	<false/>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
