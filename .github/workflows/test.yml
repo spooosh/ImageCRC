@@ -2,9 +2,12 @@ name: Test
 
 on:
   push:
+    # Only main — feature branches like `tests/**` are covered by the
+    # pull_request trigger below, so listing them here would double-fire
+    # CI for every PR push (concurrency.cancel-in-progress can't dedupe
+    # across the two trigger types because their github.ref differs).
     branches:
       - main
-      - "tests/**"
     paths-ignore:
       - "**.md"
       - "docs/**"
