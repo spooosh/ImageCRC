@@ -62,7 +62,7 @@ struct WebPQualityMatrixTests {
 @Suite("Perceptual quality — HEIC matrix")
 struct HEICQualityMatrixTests {
     @Test("HEIC SSIM thresholds across quality matrix",
-          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_HEIC"] != "1"),
+          .enabled(if: CodecCapability.heicEncodeAvailable),
           arguments: [
             (q: 1.0,  minSSIM: 0.97),
             (q: 0.8,  minSSIM: 0.93),
@@ -87,7 +87,7 @@ struct HEICQualityMatrixTests {
 struct AVIFQualityMatrixTests {
     @Test("AVIF SSIM thresholds across quality matrix",
           .timeLimit(.minutes(1)),
-          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_AVIF"] != "1"),
+          .enabled(if: CodecCapability.avifEncodeAvailable),
           arguments: [
             // macOS ImageIO AVIF rejects q=1.0 (lossless codepath unsupported);
             // q=0.99 is the practical ceiling — observed SSIM ≈ 0.9999.

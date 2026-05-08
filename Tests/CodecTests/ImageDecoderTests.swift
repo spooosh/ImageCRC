@@ -8,15 +8,14 @@ import Testing
 struct ImageDecoderDispatchTests {
     /// AVIF and HEIC encode require hardware codecs (AV1 / HEVC) that
     /// virtualised macOS CI runners lack — IOServiceGetMatchingService fails.
-    /// Filter them out of the dispatch sweep when the matching skip flag is
-    /// set; locally on Apple Silicon both run sub-second.
+    /// Filter them out of the dispatch sweep when the host can't encode them;
+    /// locally on Apple Silicon both run sub-second.
     private static let formatsToTest: [InputFormat] = {
-        let env = ProcessInfo.processInfo.environment
         var all: [InputFormat] = [.jpeg, .png, .heic, .avif, .webp]
-        if env["IMAGECRC_TEST_SKIP_AVIF"] == "1" {
+        if !CodecCapability.avifEncodeAvailable {
             all.removeAll { $0 == .avif }
         }
-        if env["IMAGECRC_TEST_SKIP_HEIC"] == "1" {
+        if !CodecCapability.heicEncodeAvailable {
             all.removeAll { $0 == .heic }
         }
         return all

@@ -29,7 +29,7 @@ struct EncoderSizeBoundsTests {
     }
 
     @Test("HEIC q=80 output is smaller than raw, larger than zero",
-          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_HEIC"] != "1"))
+          .enabled(if: CodecCapability.heicEncodeAvailable))
     func heicBounds() throws {
         let src = SyntheticImage.gradient(width: 256, height: 256)
         let data = try HEICEncoder.encode(image: src, quality: 0.8)
@@ -39,7 +39,7 @@ struct EncoderSizeBoundsTests {
 
     @Test("AVIF q=80 output is smaller than raw, larger than zero",
           .timeLimit(.minutes(1)),
-          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_AVIF"] != "1"))
+          .enabled(if: CodecCapability.avifEncodeAvailable))
     func avifBounds() throws {
         let src = SyntheticImage.gradient(width: 256, height: 256)
         let data = try AVIFEncoder.encode(image: src, quality: 0.8)

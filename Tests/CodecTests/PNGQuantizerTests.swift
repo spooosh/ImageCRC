@@ -5,11 +5,11 @@ import Testing
 
 @Suite("PNGQuantizer")
 struct PNGQuantizerTests {
-    /// Skipped unless IMAGECRC_TEST_REQUIRE_PNGQUANT=1 is set, since the
-    /// subprocess depends on a system-installed binary not present on every
-    /// developer machine. Phase 6 CI sets the env var after `brew install pngquant`.
+    /// Skipped when no pngquant binary is reachable on standard PATH locations,
+    /// since the subprocess depends on a system-installed binary not present on
+    /// every developer machine. Phase 6 CI provides it via `brew install pngquant`.
     @Test("pngquant produces a smaller PNG for a non-trivial gradient",
-          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_REQUIRE_PNGQUANT"] == "1"))
+          .enabled(if: CodecCapability.pngquantAvailable))
     func happyPath() async throws {
         let src = SyntheticImage.gradient(width: 256, height: 256)
         let lossless = try PNGEncoder.encode(image: src)
@@ -23,7 +23,7 @@ struct PNGQuantizerTests {
     }
 
     @Test("pngquant SSIM threshold at quality=70",
-          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_REQUIRE_PNGQUANT"] == "1"))
+          .enabled(if: CodecCapability.pngquantAvailable))
     func ssimAtQuality70() async throws {
         let src = SyntheticImage.gradient(width: 256, height: 256)
         let srcBuf = try RGBABuffer.make(from: src)

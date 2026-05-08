@@ -29,8 +29,6 @@ jobs:
     name: swift test (macos-14)
     runs-on: macos-14
     timeout-minutes: 30
-    env:
-      IMAGECRC_TEST_REQUIRE_PNGQUANT: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,22 +75,17 @@ jobs:
       - name: xcodebuild test
         run: |
           set -o pipefail
-          # AVIF and HEIC encode tests require hardware codecs (AV1 / HEVC)
-          # that virtualised macos-14 GH runners lack — the AppleAVEVA
-          # IOService doesn't exist, so encode fails immediately.
-          # Pngquant tests are env-gated to enabled when the binary is
-          # available (brew installs it above).
-          # xcodebuild does not propagate process-level env into the test
-          # runner — `TEST_RUNNER_<NAME>` build settings are the supported
-          # path; Xcode strips the prefix when launching the runner.
+          # Tests gate themselves on actual host capability via Tests/Support/
+          # CodecCapability.swift — AVIF/HEIC encode are probed at startup
+          # (skipped if the AppleAVEVA hardware codec isn't reachable) and
+          # pngquant tests check for a binary on standard PATH locations
+          # (we brew-install above). No env-var plumbing needed; xcodebuild's
+          # host-app test runner doesn't reliably propagate process env.
           xcodebuild test \
             -project ImageCRC.xcodeproj \
             -scheme ImageCRC \
             -destination 'platform=macOS,arch=arm64' \
-            -resultBundlePath build/TestResults.xcresult \
-            TEST_RUNNER_IMAGECRC_TEST_REQUIRE_PNGQUANT=1 \
-            TEST_RUNNER_IMAGECRC_TEST_SKIP_AVIF=1 \
-            TEST_RUNNER_IMAGECRC_TEST_SKIP_HEIC=1
+            -resultBundlePath build/TestResults.xcresult
 
       - name: Upload xcresult on failure
         if: failure()

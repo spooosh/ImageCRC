@@ -37,7 +37,7 @@ struct ImageIOEncodersRoundTripTests {
     }
 
     @Test("HEIC round-trip preserves dimensions",
-          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_HEIC"] != "1"))
+          .enabled(if: CodecCapability.heicEncodeAvailable))
     func heicRoundTrip() throws {
         let tmp = try TempDirectory()
         let src = SyntheticImage.gradient(width: 64, height: 32)
@@ -50,7 +50,7 @@ struct ImageIOEncodersRoundTripTests {
 
     @Test("AVIF round-trip preserves dimensions",
           .timeLimit(.minutes(1)),
-          .enabled(if: ProcessInfo.processInfo.environment["IMAGECRC_TEST_SKIP_AVIF"] != "1"))
+          .enabled(if: CodecCapability.avifEncodeAvailable))
     func avifRoundTrip() throws {
         // AVIF encode is slow on macOS 14 — bound the test. Virtualised CI
         // runners without hardware AV1 may take 10x longer; gate via env.
