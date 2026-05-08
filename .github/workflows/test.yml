@@ -68,12 +68,17 @@ jobs:
           pngquant --version
           xcodegen --version
 
-      - name: swift test
-        run: swift test
-
       - name: Generate Xcode project
         run: xcodegen generate
 
+      # Drive both SwiftPM-side tests (ImageCRCTests target) and the
+      # XCUITest UI smoke (ImageCRCUITests) via xcodebuild rather than
+      # `swift test`. SwiftPM's `swiftpm-testing` runner hangs silently
+      # post-build on the macos-14 GH runner — never starts streaming
+      # test events, never exits — even with AVIF gated off. Xcode's
+      # test runner manages NSApplication lifecycle and avoids whatever
+      # the hang is. This also drops a redundant double-run since
+      # xcodebuild already exercises the same SwiftPM test target.
       - name: xcodebuild test
         run: |
           set -o pipefail
